@@ -1,0 +1,17 @@
+torch
+torchvision
+torchaudio
+transformers
+datasets
+accelerate
+peft
+fastapi
+uvicorn
+opencv-python
+matplotlib
+scikit-learn
+pandas
+numpy
+Pillow
+huggingface_hub
+python-multipart
