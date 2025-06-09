@@ -1,0 +1,16 @@
+patient_id,image_path,emr_text,triage_level
+COVID-1,images/COVID/COVID-1.png,"The patient reports loss of taste and smell, with a persistent cough.",high
+COVID-2,images/COVID/COVID-10.png,"The patient reports loss of taste and smell, with a persistent cough.",high
+COVID-3,images/COVID/COVID-100.png,"The patient presents with a dry cough, fever, and shortness of breath. Symptoms began 5 days ago.",high
+COVID-4,images/COVID/COVID-1000.png,"The patient presents with a dry cough, fever, and shortness of breath. Symptoms began 5 days ago.",high
+COVID-5,images/COVID/COVID-1001.png,"The patient reports loss of taste and smell, with a persistent cough.",high
+NORMAL-1,images/NORMAL/Normal-1.png,Routine checkup with no abnormal findings. The patient denies cough or chest pain.,low
+NORMAL-2,images/NORMAL/Normal-10.png,No complaints. Normal vitals and physical exam.,low
+NORMAL-3,images/NORMAL/Normal-100.png,No complaints. Normal vitals and physical exam.,low
+NORMAL-4,images/NORMAL/Normal-1000.png,Clear lungs on auscultation. No signs of infection. Chest x-ray was unremarkable.,low
+NORMAL-5,images/NORMAL/Normal-10000.png,Clear lungs on auscultation. No signs of infection. Chest x-ray was unremarkable.,low
+VIRAL PNEUMONIA-1,images/VIRAL PNEUMONIA/Viral Pneumonia-1.png,Crackles are auscultated in the lower lobes. The patient presents with fatigue and mild respiratory distress.,medium
+VIRAL PNEUMONIA-2,images/VIRAL PNEUMONIA/Viral Pneumonia-10.png,The X-ray shows patchy infiltrates in the lungs. The patient is recovering from a recent viral infection.,medium
+VIRAL PNEUMONIA-3,images/VIRAL PNEUMONIA/Viral Pneumonia-100.png,The X-ray shows patchy infiltrates in the lungs. The patient is recovering from a recent viral infection.,medium
+VIRAL PNEUMONIA-4,images/VIRAL PNEUMONIA/Viral Pneumonia-1000.png,Crackles are auscultated in the lower lobes. The patient presents with fatigue and mild respiratory distress.,medium
+VIRAL PNEUMONIA-5,images/VIRAL PNEUMONIA/Viral Pneumonia-1001.png,"Mild fever, chest tightness, and dry cough for the past 3 days. Oxygen levels are normal.",medium
