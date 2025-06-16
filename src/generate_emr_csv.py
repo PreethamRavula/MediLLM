@@ -49,7 +49,7 @@ records = []
 for label, dir_path in categories.items():
     for i, img_path in enumerate(sorted(dir_path.iterdir())[:30], start=1):
         patient_id = f"{label}-{i}"
-        image_path = f"images/{label}/{img_path.name}"
+        image_path = str(img_path.relative_to(IMAGES_DIR.parent.parent))
         emr_text = random.choice(templates[label])
         triage_level = triage_map[label]
         records.append([patient_id, image_path, emr_text, triage_level])
