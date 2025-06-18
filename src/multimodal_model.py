@@ -30,7 +30,7 @@ class MediLLMModel(nn.Module):
 
         # Fusion layer: concatenate + FC
         fusion_dim = self.text_hidden_size + self.image_hidden_size # Total size after concatenating text and image features
-        self.classifier = nn.sequential(   # pass the combined features into the classifier
+        self.classifier = nn.Sequential(   # pass the combined features into the classifier
             nn.Linear(fusion_dim, 256), # Dense layer
             nn.ReLU(), # Non-linear activation function
             nn.Dropout(0.3), # randomly Zeroes 30 percent of neuron outputs to prevent over-fitting
