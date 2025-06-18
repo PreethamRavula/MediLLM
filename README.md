@@ -11,7 +11,15 @@
 - Real-time Inference via FastAPI
 - Deployed with Docker
 
-## 🧠 Architecture
+## 🧠 Model Architecture
+
+This project uses a fusion of:
+
+- 🧬 ClinicalBERT for EMR text
+- 🩻 ResNet-50 for chest X-rays
+- ➕ Concatenated deatures passed into a classification head
+
+![Model](assets/model_diagram.png)
 
 ## 📁 Dataset Sources
 
