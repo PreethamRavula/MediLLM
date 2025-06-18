@@ -1,3 +1,5 @@
 # Ignore Data files for tracking
 data/
 checkpoints/
+__pycache__/
+*.py[cod]
