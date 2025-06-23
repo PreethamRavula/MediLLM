@@ -3,3 +3,15 @@ data/
 checkpoints/
 __pycache__/
 *.py[cod]
+
+# Weights & Biases
+wandb/
+wandb/*
+
+# Optuna study databases
+*.db 
+
+# Checkpoints / logs
+checkpoints/
+logs/
+*.pt
