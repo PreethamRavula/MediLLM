@@ -1,0 +1,143 @@
+import os
+import sys
+
+# Automatically add Project root to python import path
+base_dir = os.path.dirname(os.path.dirname(__file__))
+if base_dir not in sys.path:
+    sys.path.append(base_dir)
+
+import torch 
+import optuna 
+from torch.utils.data import DataLoader, random_split
+from torch.nn import CrossEntropyLoss
+from torch.optim import Adam 
+from sklearn.metrics import accuracy_score, f1_score
+from tqdm import tqdm
+import wandb 
+import json
+import yaml
+
+from src.triage_dataset import TriageDataset
+from src.multimodal_model import MediLLMModel
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+def objective(trial):
+    wandb.init(project="medi-llm-hparam-tuning", reinit=True)
+
+    # --- Hyperparameters ---
+    lr = trial.suggest_float("lr", 1e-5, 1e-4, log=True)
+    dropout = trial.suggest_float("dropout", 0.1, 0.5)
+    hidden_dim = trial.suggest_categorical("hidden_dim", [128, 256, 512])
+    batch_size = trial.suggest_categorical("bs", [4, 8, 16])
+
+    model = MediLLMModel(dropout=dropout, hidden_dim=hidden_dim).to(device)
+    wandb.watch(model)
+
+    dataset = TriageDataset(os.path.join(base_dir, "data", "emr_records.csv"))
+    train_size = int(0.8 * len(dataset))
+    val_size = len(dataset) - train_size
+    train_set, val_set = random_split(dataset, [train_size, val_size])
+
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_set, batch_size=batch_size)
+
+    criterion = CrossEntropyLoss()
+    optimizer = Adam(model.parameters(), lr=lr)
+
+    for epoch in range(3):
+        model.train()
+        for batch in train_loader:
+            input_ids = batch["input_ids"].to(device)
+            attn_mask = batch["attention_mask"].to(device)
+            images = batch["image"].to(device)
+            labels = batch["label"].to(device)
+
+            optimizer.zero_grad()
+            outputs = model(input_ids, attn_mask, images)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+
+    # Validation
+    model.eval()
+    all_preds, all_labels = [], []
+    with torch.no_grad():
+        for batch in val_loader:
+            input_ids = batch["input_ids"].to(device)
+            attn_mask = batch["attention_mask"].to(device)
+            images = batch["image"].to(device)
+            labels = batch["label"].to(device)
+
+            outputs = model(input_ids, attn_mask, images)
+            preds = torch.argmax(outputs, dim=1).cpu().numpy()
+            all_preds.extend(preds)
+            all_labels.extend(labels.cpu().numpy())
+
+    f1 = f1_score(all_labels, all_preds, average="weighted")
+
+    # Log to W&B and Optuna
+    wandb.log({
+        "f1_score": f1,
+        "accuracy": accuracy_score(all_labels, all_preds),
+        "lr": lr,
+        "dropout": dropout,
+        "hidden_dim": hidden_dim,
+        "batch_size": batch_size
+    })
+    wandb.finish()
+    return f1
+
+if __name__=="__main__":
+    study = optuna.create_study(direction="maximize")
+    study.optimize(objective, n_trials=25)
+
+    print("Best hyperparameters:", study.best_params)
+
+    # Save as JSON
+    assets_dir = os.path.join(base_dir, "assets")
+
+    # Make sure assets directory exists in the root
+    os.makedirs(assets_dir, exist_ok=True)
+
+    # Save the best hyperparameters
+    with open(os.path.join(assets_dir, "best_hyperparams.json"), "w") as f:
+        json.dump(study.best_params, f, indent=4)
+
+    # Export to config.yaml
+    config_dir = os.path.join(base_dir, "config")
+    config_path = os.path.join(config_dir, "config.yaml")
+    
+    # Make sure config directory exists in the root
+    os.makedirs(config_dir, exist_ok=True)
+
+    # If the config file doesn't exist, create a default one
+    if not os.path.exists(config_path):
+        with open(config_path, "w") as f:
+            f.write(
+                "model:\n"
+                "  dropout: 0.3\n"
+                "  hidden_dim: 256\n\n"
+                "train:\n"
+                "  lr: 2e-5\n"
+                "  batch_size: 8\n"
+                "  epochs: 5\n\n"
+                "wandb:\n"
+                " medi-llm-final\n"
+            )
+
+    # Export to config.yaml
+    with open(config_path, "r") as f:
+        cfg = yaml.safe_load(f)
+
+    cfg["model"]["dropout"] = float(study.best_params["dropout"])
+    cfg["model"]["hidden_dim"] = int(study.best_params["hidden_dim"])
+    cfg["train"]["lr"] = float(study.best_params["lr"])
+    cfg["train"]["batch_size"] = int(study.best_params["bs"])
+
+    # Save updated config
+    with open(config_path, "w") as f:
+        yaml.dump(cfg, f, default_flow_style=False)
+    
+
+    

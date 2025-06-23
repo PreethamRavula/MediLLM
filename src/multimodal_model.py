@@ -5,7 +5,7 @@ from transformers import AutoModel # Pretrained text encoders
 
 
 class MediLLMModel(nn.Module):
-    def __init__(self, text_model_name="emilyalsentzer/Bio_ClinicalBERT", num_classes=3): # Bio_ClinicalBERT is a pretrained model on clinical notes, output to 3 classes i.e triage levels
+    def __init__(self, text_model_name="emilyalsentzer/Bio_ClinicalBERT", num_classes=3, dropout=0.3, hidden_dim=256): # Bio_ClinicalBERT is a pretrained model on clinical notes, output to 3 classes i.e triage levels
         super(MediLLMModel, self).__init__() # Use constructor of nn.Module
 
         # Text encoder: Bio_ClinicalBERT
@@ -31,10 +31,10 @@ class MediLLMModel(nn.Module):
         # Fusion layer: concatenate + FC
         fusion_dim = self.text_hidden_size + self.image_hidden_size # Total size after concatenating text and image features
         self.classifier = nn.Sequential(   # pass the combined features into the classifier
-            nn.Linear(fusion_dim, 256), # Dense layer
+            nn.Linear(fusion_dim, hidden_dim), # Dense layer
             nn.ReLU(), # Non-linear activation function
-            nn.Dropout(0.3), # randomly Zeroes 30 percent of neuron outputs to prevent over-fitting
-            nn.Linear(256, num_classes) # Final Classification output
+            nn.Dropout(dropout), # randomly Zeroes 30 percent of neuron outputs to prevent over-fitting
+            nn.Linear(hidden_dim, num_classes) # Final Classification output
         )
 
     def forward(self, input_ids, attention_mask, image_tensor): # input_ids shape: [batch, seq_length], attention_mask: mask to ignore padding same shape, image_tensor: [batch, 3, 224, 224]
