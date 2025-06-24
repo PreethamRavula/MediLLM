@@ -23,7 +23,14 @@ from src.multimodal_model import MediLLMModel
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def objective(trial):
-    wandb.init(project="medi-llm-hparam-tuning", reinit=True)
+    wandb.init(
+        project="mediLLM",
+        name=f"trial-{trial.number}-v2-{wandb.util.generate_id()}",
+        group="new_dataset_trials",
+        config={
+            "dataset_size": 3000
+        }
+    )
 
     # --- Hyperparameters ---
     lr = trial.suggest_float("lr", 1e-5, 1e-4, log=True)
@@ -34,7 +41,7 @@ def objective(trial):
     model = MediLLMModel(dropout=dropout, hidden_dim=hidden_dim).to(device)
     wandb.watch(model)
 
-    dataset = TriageDataset(os.path.join(base_dir, "data", "emr_records.csv"))
+    dataset = TriageDataset(os.path.join(base_dir, "data", "emr_records_extended.csv"))
     train_size = int(0.8 * len(dataset))
     val_size = len(dataset) - train_size
     train_set, val_set = random_split(dataset, [train_size, val_size])
@@ -47,7 +54,8 @@ def objective(trial):
 
     for epoch in range(3):
         model.train()
-        for batch in train_loader:
+        loop = tqdm(train_loader, desc=f"Epoch {epoch+1}/3", leave=False)
+        for batch in loop:
             input_ids = batch["input_ids"].to(device)
             attn_mask = batch["attention_mask"].to(device)
             images = batch["image"].to(device)
@@ -59,11 +67,13 @@ def objective(trial):
             loss.backward()
             optimizer.step()
 
+            loop.set_postfix(loss=loss.item())
+
     # Validation
     model.eval()
     all_preds, all_labels = [], []
     with torch.no_grad():
-        for batch in val_loader:
+        for batch in tqdm(val_loader, desc="Validating", leave=False):
             input_ids = batch["input_ids"].to(device)
             attn_mask = batch["attention_mask"].to(device)
             images = batch["image"].to(device)
@@ -89,9 +99,19 @@ def objective(trial):
     return f1
 
 if __name__=="__main__":
-    study = optuna.create_study(direction="maximize")
-    study.optimize(objective, n_trials=25)
+    study = optuna.create_study(
+        study_name="mediLLM_large_dataset_tuning",
+        direction="maximize"
+    )
+    with tqdm(total=25, desc="Optuna Trials") as pbar:
+        def wrapped_objective(trial):
+            result = objective(trial)
+            pbar.update(1)
+            return result
+        
+        study.optimize(wrapped_objective, n_trials=25)
 
+    print("Best F1 score achieved:", study.best_value)
     print("Best hyperparameters:", study.best_params)
 
     # Save as JSON
@@ -123,7 +143,7 @@ if __name__=="__main__":
                 "  batch_size: 8\n"
                 "  epochs: 5\n\n"
                 "wandb:\n"
-                " medi-llm-final\n"
+                " project: medi-llm-final\n"
             )
 
     # Export to config.yaml
