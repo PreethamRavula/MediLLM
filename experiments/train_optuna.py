@@ -1,6 +1,7 @@
 import os
 import sys
 
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 # Automatically add Project root to python import path
 base_dir = os.path.dirname(os.path.dirname(__file__))
 if base_dir not in sys.path:
@@ -11,8 +12,10 @@ import optuna
 from torch.utils.data import DataLoader, random_split
 from torch.nn import CrossEntropyLoss
 from torch.optim import Adam 
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, classification_report, confusion_matrix
 from tqdm import tqdm
+import matplotlib.pyplot as plt 
+import seaborn as sns 
 import wandb 
 import json
 import yaml
@@ -52,9 +55,9 @@ def objective(trial):
     criterion = CrossEntropyLoss()
     optimizer = Adam(model.parameters(), lr=lr)
 
-    for epoch in range(3):
+    for epoch in range(2):
         model.train()
-        loop = tqdm(train_loader, desc=f"Epoch {epoch+1}/3", leave=False)
+        loop = tqdm(train_loader, desc=f"Epoch {epoch+1}/2", leave=False)
         for batch in loop:
             input_ids = batch["input_ids"].to(device)
             attn_mask = batch["attention_mask"].to(device)
@@ -85,7 +88,20 @@ def objective(trial):
             all_labels.extend(labels.cpu().numpy())
 
     f1 = f1_score(all_labels, all_preds, average="weighted")
+    print("f\n[Trial {trial.number}] Classification Report:")
+    print(classification_report(all_labels, all_preds, target_names=["low", "medium", "high"]))
 
+    cm = confusion_matrix(all_labels, all_preds)
+    plt.figure(figsize=(6, 5))
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
+                xticklabels=["low", "medium", "high"],
+                yticklabels=["low", "medium", "high"])
+    plt.title(f"Confusion Matrix - Trial {trial.number}")
+    plt.xlabel("Predicted")
+    plt.ylabel("True")
+    wandb.log({f"confusion_matrix/trial_{trial.number}": wandb.Image(plt)})
+    plt.close()
+    
     # Log to W&B and Optuna
     wandb.log({
         "f1_score": f1,

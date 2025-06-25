@@ -2,7 +2,8 @@ import os
 import torch 
 from torch.utils.data import Dataset 
 from PIL import Image 
-from torchvision import transforms 
+from torchvision import transforms
+from torchvision.transforms import InterpolationMode 
 import pandas as pd 
 from transformers import AutoTokenizer
 
@@ -12,8 +13,11 @@ class TriageDataset(Dataset):
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
         self.max_length = max_length
         self.transform = transform if transform else transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor()
+            transforms.Resize((256, 256)), # Resize first
+            transforms.RandomResizedCrop(224, scale=(0.9, 1.0), interpolation=InterpolationMode.BILINEAR), # Slight zoom-in/out
+            transforms.RandomRotation(degrees=5), # + or - 5° rotation
+            transforms.ColorJitter(brightness=0.1, contrast=0.1), # simulate slight imaging variations
+            transforms.ToTensor(),
         ])
 
         # Label mapping 
