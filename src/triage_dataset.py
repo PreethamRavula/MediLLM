@@ -8,10 +8,14 @@ import pandas as pd
 from transformers import AutoTokenizer
 
 class TriageDataset(Dataset):
-    def __init__(self, csv_file, tokenizer_name="emilyalsentzer/Bio_ClinicalBERT", max_length=128, transform=None):
+    def __init__(self, csv_file, tokenizer_name="emilyalsentzer/Bio_ClinicalBERT", max_length=128, transform=None, mode="multimodal"):
+        assert mode in ["text", "image", "multimodal"], "Mode must be one of: 'text', 'image', or 'multimodal'"
+        
         self.df = pd.read_csv(csv_file) # Create a dataframe from csv file
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
         self.max_length = max_length
+        self.mode = mode
+
         self.transform = transform if transform else transforms.Compose([
             transforms.Resize((256, 256)), # Resize first
             transforms.RandomResizedCrop(224, scale=(0.9, 1.0), interpolation=InterpolationMode.BILINEAR), # Slight zoom-in/out
@@ -28,30 +32,31 @@ class TriageDataset(Dataset):
         return len(self.df) # returns number of rows so dataloader can know how many batches to prepare
     
     def __getitem__(self, idx):
-        row = self.df.iloc[idx] 
+        row = self.df.iloc[idx]
+        output = {}
 
-        # Process text
-        text = row["emr_text"]
-        tokens = self.tokenizer(
-            text, 
-            padding="max_length", 
-            truncation=True, 
-            max_length=self.max_length, 
-            return_tensors="pt"
-        )
+        if self.mode in ["text", "multimodal"]: 
+            # Process text
+            text = row["emr_text"]
+            tokens = self.tokenizer(
+                text, 
+                padding="max_length", 
+                truncation=True, 
+                max_length=self.max_length, 
+                return_tensors="pt"
+            )
+            # removing batch dimension from tokenized tensors
+            output["input_ids"] = tokens["input_ids"].squeeze(0)
+            output["attention_mask"] = tokens["attention_mask"].squeeze(0)
 
-        # Process image
-        base_dir = os.path.dirname(os.path.dirname(__file__))
-        image_path = os.path.join(base_dir, row["image_path"])
-        image = Image.open(image_path).convert("RGB")
-        image = self.transform(image)
+        if self.mode in ["image", "multimodal"]:
+            # Process image
+            base_dir = os.path.dirname(os.path.dirname(__file__))
+            image_path = os.path.join(base_dir, row["image_path"])
+            image = Image.open(image_path).convert("RGB")
+            output["image"] = self.transform(image)
 
         # Label 
-        label = self.label_map[row["triage_level"]]
+        output["label"] = torch.tensor(self.label_map[row["triage_level"]], dtype=torch.long)
         
-        return { # removing batch dimension from tokenized tensors
-            "input_ids": tokens["input_ids"].squeeze(0),
-            "attention_mask": tokens["attention_mask"].squeeze(0),
-            "image": image,
-            "label": torch.tensor(label, dtype=torch.long) # Loss functions like crossentropy expects label as LongTensor(int64), not floats or other types
-        }
+        return output
