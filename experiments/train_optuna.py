@@ -9,9 +9,10 @@ if base_dir not in sys.path:
 
 import torch 
 import optuna 
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, Subset 
 from torch.nn import CrossEntropyLoss
 from torch.optim import Adam 
+from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.metrics import accuracy_score, f1_score, classification_report, confusion_matrix
 from tqdm import tqdm
 import matplotlib.pyplot as plt 
@@ -19,19 +20,27 @@ import seaborn as sns
 import wandb 
 import json
 import yaml
+import argparse
 
 from src.triage_dataset import TriageDataset
 from src.multimodal_model import MediLLMModel
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+def stratified_split(dataset, val_ratio=0.2, seed=42, label_column="triage_level"):
+    label_map = {"low": 0, "medium": 1, "high": 2}
+    labels = [dataset.df.iloc[i][label_column] for i in range(len(dataset))]
+    sss = StratifiedShuffleSplit(n_splits=1, test_size=val_ratio, random_state=seed)
+    train_idx, val_idx = next(sss.split(range(len(dataset)), labels))
+    return Subset(dataset, train_idx), Subset(dataset, val_idx)
+
 def objective(trial):
     wandb.init(
         project="mediLLM",
-        name=f"trial-{trial.number}-v2-{wandb.util.generate_id()}",
-        group="new_dataset_trials",
+        name=f"trial-{trial.number}-v3-{wandb.util.generate_id()}",
+        group="Final_augmented_trials",
         config={
-            "dataset_size": 3000
+            "dataset_size": 900
         }
     )
 
@@ -45,9 +54,7 @@ def objective(trial):
     wandb.watch(model)
 
     dataset = TriageDataset(os.path.join(base_dir, "data", "emr_records_extended.csv"))
-    train_size = int(0.8 * len(dataset))
-    val_size = len(dataset) - train_size
-    train_set, val_set = random_split(dataset, [train_size, val_size])
+    train_set, val_set = stratified_split(dataset)
 
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_set, batch_size=batch_size)
@@ -114,18 +121,25 @@ def objective(trial):
     wandb.finish()
     return f1
 
+def get_args():
+    parser = argparse.ArgumentParser(description="Run Optuna hyperparameter search")
+    parser.add_argument("--n_trials", type=int, default=10, help="Number of Optuna trials to run")
+    return parser.parse_args()
+
 if __name__=="__main__":
+    args = get_args()
+
     study = optuna.create_study(
-        study_name="mediLLM_large_dataset_tuning",
+        study_name="mediLLM_final_stratified",
         direction="maximize"
     )
-    with tqdm(total=25, desc="Optuna Trials") as pbar:
+    with tqdm(total=args.n_trials, desc="Optuna Trials") as pbar:
         def wrapped_objective(trial):
             result = objective(trial)
             pbar.update(1)
             return result
         
-        study.optimize(wrapped_objective, n_trials=25)
+        study.optimize(wrapped_objective, n_trials=args.n_trials)
 
     print("Best F1 score achieved:", study.best_value)
     print("Best hyperparameters:", study.best_params)

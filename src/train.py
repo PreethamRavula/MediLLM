@@ -1,9 +1,10 @@
 import torch # PyTorch core utility for model training 
 import os
-from torch.utils.data import DataLoader, random_split # Dataloader to batch and feed data to model, random split to split dataset into train and validation sets
+from torch.utils.data import DataLoader, Subset # Dataloader to batch and feed data to model, random split to split dataset into train and validation sets
 from torch.nn import CrossEntropyLoss # PyTorch core utility for model training
 from torch.optim import Adam # PyTorch core utility for model training, Adam is the Optimizer a gradient descent model
 from sklearn.metrics import accuracy_score, f1_score # Evaluation metrics
+from sklearn.model_selection import StratifiedShuffleSplit
 from tqdm import tqdm # loading bar for loops
 import matplotlib.pyplot as plt # for plotting
 from src.triage_dataset import TriageDataset # Dataset Class
@@ -11,25 +12,63 @@ from src.multimodal_model import MediLLMModel # Mutlimodal Model
 
 base_dir = os.path.dirname(os.path.dirname(__file__)) # Project directory
 
+def load_config():
+    config_dir = os.path.join(base_dir, "config")
+    config_path = os.path.join(config_dir, "config.yaml")
+
+    # Make sure config directory exists in the root
+    os.makedirs(config_dir, exist_ok=True)
+
+     # If the config file doesn't exist, create a default one
+    if not os.path.exists(config_path):
+        with open(config_path, "w") as f:
+            f.write(
+                "model:\n"
+                "  dropout: 0.3\n"
+                "  hidden_dim: 256\n\n"
+                "train:\n"
+                "  lr: 2e-5\n"
+                "  batch_size: 8\n"
+                "  epochs: 5\n\n"
+                "wandb:\n"
+                " project: medi-llm-final\n"
+            )
+    
+    # otherwise export to yaml
+    with open(config_path, "r") as f:
+        return yaml.safe_load(f)
+
+def stratified_split(dataset, val_ratio=0.2, seed=42):
+    labels = [dataset.df.iloc[i]["triage_level"] for i in range(len(dataset))]
+    sss = StratifiedShuffleSplit(n_splits=1, test_size=val_ratio, random_state=seed)
+    tran_idx, val_idx = next(sss.split(range(len(dataset)), labels))
+    return Subset(dataset, tran_idx), Subset(dataset, val_idx)
+
 def train_model(): # Function to instantiate model and data, train, validate, plot results and save the model
+    config = load_config()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu") # Use GPU if available or else use CPU
-    model = MediLLMModel().to(device) # moves the model to selected device
-
+    
     dataset_dir = os.path.join(base_dir, "data", "emr_records.csv")
-    dataset = TriageDataset(dataset_dir)
-    train_size = int(0.8 * len(dataset)) # Split dataset to 80% training
-    val_size = len(dataset) - train_size # Split dataset to 20% validation
-    train_set, val_set = random_split(dataset, [train_size, val_size])
+    dataset = TriageDataset(
+        csv_file=dataset_dir
+    )
 
-    train_loader = DataLoader(train_set, batch_size=8, shuffle=True) # Create data in batches to the model
-    val_loader = DataLoader(val_set, batch_size=8)
+    model = MediLLMModel(
+        dropout=config["model"]["dropout"],
+        hidden_dim=config["model"]["hidden_dim"]
+    ).to(device) # moves the model to selected device
+ 
+    train_set, val_set = stratified_split(dataset)
+
+    train_loader = DataLoader(train_set, batch_size=config["train"]["batch_size"], shuffle=True) # Create data in batches to the model
+    val_loader = DataLoader(val_set, batch_size=config["train"]["batch_size"])
 
     criterion = CrossEntropyLoss() # Calculate difference between model prediction and true labels
-    optimizer = Adam(model.parameters(), lr=2e-5) # Adaptive learning rate optimizer for fast-converging
+    optimizer = Adam(model.parameters(), lr=config["train"]["lr"]) # Adaptive learning rate optimizer for fast-converging
 
     train_acc, val_acc = [], [] # Lists to store accuracy per epoch for plotting
 
-    for epoch in range(5):
+    for epoch in range(config["train"]["epochs"]):
         model.train() # Activate training the model, enable dropout
         all_preds, all_labels = [], []
 
@@ -48,7 +87,7 @@ def train_model(): # Function to instantiate model and data, train, validate, pl
                 }
             """
             optimizer.zero_grad() # Zero out gradients from previous batch
-            outputs = model(input_ids, attn_mask, images) # Forward pass through the model
+            outputs = model(input_ids=input_ids, attention_mask=attn_mask, image=images) # Forward pass through the model
             loss = criterion(outputs, labels) # Compute loss value
             loss.backward() # Back propagation to compute gradients
             optimizer.step() # Adjust the weights using gradients
@@ -86,14 +125,16 @@ def train_model(): # Function to instantiate model and data, train, validate, pl
         print(f"Val Accuracy: {val_acc_epoch:.4f}, F1 Score: {val_f1:.4f}")
 
     # Save model
-    torch.save(model.state_dict(), "medi_llm_model.pth") # Saves the model weights only not total architecture to reuse later
+    model_path = os.path.join(base_dir, "medi_llm_model.pth")
+    torch.save(model.state_dict(), model_path) # Saves the model weights only not total architecture to reuse later
 
     # Plot accuracy
+    save_dir = os.path.join(base_dir, "assets", "model_training_curve.png")
     plt.plot(train_acc, label="Train Acc")
     plt.plot(val_acc, label="Val Acc")
     plt.legend()
     plt.title("Training vs Validation Accuracy")
-    plt.savefig("assests/training_curve.png")
+    plt.savefig(save_dir)
 
 if __name__=="__main__":
     train_model() # Only runs if file is run directly not when it is imported
