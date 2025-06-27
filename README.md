@@ -53,7 +53,7 @@ The MediLLM training pipeline includes the following steps:
 
 ---
 
-1.**🧬 Synthetic Dataset Generation**
+1. **🧬 Synthetic Dataset Generation**
 
     - EMR notes are dynamically generated using class-specific medical templates, ambiguous cases, noise injection and randomized vitals with a little bit of blur.
 
@@ -61,14 +61,14 @@ The MediLLM training pipeline includes the following steps:
 
     - Balanced dataset of 300 samples per class (900 total) via `generate_emr_csv.py`.
 
-2.**🧪 Data Augmentation**
+2. **🧪 Data Augmentation**
 
     - Strong augmentation applied on X-rays:
         - Random cropping, rotation, color jittering, and Gaussian blur.
 
     - Text inputs tokenized using ClinicalBERT tokeinizer.
 
-3.**📦 Dataset Loader**
+3. **📦 Dataset Loader**
 
     - `TriageDataset.py` handles fusion of images and EMR text.
 
@@ -76,7 +76,7 @@ The MediLLM training pipeline includes the following steps:
 
     - Stratified splitting via `StratifiedShuffleSplit` ensures class-balanced validation.
 
-4.**🧠Model Architecture**
+4. **🧠Model Architecture**
 
     - Text encoder: `Bio_ClinicalBERT`
 
@@ -84,7 +84,7 @@ The MediLLM training pipeline includes the following steps:
 
     - Fusion: Concatenation -> Feedforward classifier -> Softmax
 
-5.**🧪Hyperparameter Tuning**
+5. **🧪Hyperparameter Tuning**
 
     - `train_optuna.py` Optuna is used for automated hyperparameter search.
 
@@ -105,6 +105,7 @@ The MediLLM training pipeline includes the following steps:
 ## 🔍 How to Run Hyperparameter Tuning
 
     ```bash
-python train_optuna.py --n_trials 25
+    python train_optuna.py --n_trials 25
+    ```
 
 ## 🚀 Try It Locally
