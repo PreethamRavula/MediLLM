@@ -104,8 +104,97 @@ The MediLLM training pipeline includes the following steps:
 
 ## 🔍 How to Run Hyperparameter Tuning
 
-    ```bash
-    python train_optuna.py --n_trials 25
-    ```
+```bash
+python train_optuna.py --n_trials 25
+```
+
+## 📈 Insights from Tuning & Dataset Evolution
+
+<details>
+<summary>📊<strong>Observations from Tuning Trials</strong></summary>
+
+Despite running 15+ Optuna trials across varying combinations of:
+
+- Learning rate
+- Dropout
+- Batch size
+- Hidden dimensions
+
+...the model **consistently returned a perfect F1 score (1.0)** on the synthetic dataset.
+
+**why ?**
+
+- Perfectly balanced classes
+- Highly structured EMR templates
+- Limited dataset scale (900 samples)
+
+🔍 **Proved to be still useful:**
+
+- Validated **robustness of the model**
+- Demonstrated **disciplined experimentation** (Optuna + W&B)
+- Showcased how even "easy" tasks can hide deeper challenges
+
+> In real-world datasets, We can expect much more variation than in model behavior.
+</details>
+
+<details>
+<summary>🔁<strong>Tuning Challemges & Dataset Evolution</strong></summary>
+
+I made several iterative changes to improve dataset generalization and reduce the risk of model overfitting:
+
+🔰 Initial Setup
+
+- Samples: 540 Images and EMR text Total
+- Result: Instant F1 = 1.0
+- EMRs too clean -> model overfit quickly
+
+🧪 Phase 1: Noise Injection
+
+- Introduced neutral clinical sentences
+- Goal was to add more confusion without changing class semantics
+- Result: Model still overfit; too predictable
+
+📈 Phase 2: Dataset Upscaling
+
+- Scaled to 3000+ samples
+- Used full COVID-19 Radiography dataset
+- Result: Very long training duration; model was still overfitting
+
+🔀 Phase 3: Realism & Ambiguity
+
+Next I planned to add more ambiguity and realism into EMR data, perform data augmentation on X-ray Images but not very aggressive augmentation.
+
+- ✅ Strong image augmentations (rotation, jitter, blur)
+- ✅ Class-overlapping symptom phrases
+- ✅ Vital blurring (e.g., SPO2: 95% in both COVID and NORMAL)
+- ✅ Ambiguous mixed cues (e.g., "normal vitals, mild wheeze")
+- ✅ Generic tokens (e.g., Patient-Normal-1, 45-year-old)
+
+Result: Model performance remained high but learning was more robust
+
+📉 Final Phase: Controlled Downscale
+
+- Reduced the dataset to 900 samples (EMR and Images each 300/class)
+- Why? Faster experimentation + forced ambiguity
+- Still oserved stable performance across trials
+
+> ⚠️ This highlights the limitations of synthetic datasets and the need to eventually test on real-world EMRs + imaging
+</details>
+
+<details>
+<summary>📊<strong>W&B Visulalizations</strong></summary>
+
+Including Following Visualizations from my hyperparameter tuning runs
+
+- ✅ Parallel Coordinates Plot
+![Parallel Coordinates](assets/Parallel_Coordinates.png)
+
+- ✅ Best Hyperparameters run
+![Best Parameter Run](assets/Best_Run.png)
+
+- ✅ Best Run Confusion Matrix
+![Confusion Matrix](assets/Best_Run_Confusion_Matix.png)
+
+</details>
 
 ## 🚀 Try It Locally
