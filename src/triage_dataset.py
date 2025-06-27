@@ -15,8 +15,9 @@ class TriageDataset(Dataset):
         self.transform = transform if transform else transforms.Compose([
             transforms.Resize((256, 256)), # Resize first
             transforms.RandomResizedCrop(224, scale=(0.9, 1.0), interpolation=InterpolationMode.BILINEAR), # Slight zoom-in/out
-            transforms.RandomRotation(degrees=5), # + or - 5° rotation
-            transforms.ColorJitter(brightness=0.1, contrast=0.1), # simulate slight imaging variations
+            transforms.RandomRotation(degrees=10), # + or - 10° rotation
+            transforms.ColorJitter(brightness=0.3, contrast=0.3), # simulate slight imaging variations
+            transforms.GaussianBlur(kernel_size=3),
             transforms.ToTensor(),
         ])
 
@@ -31,7 +32,13 @@ class TriageDataset(Dataset):
 
         # Process text
         text = row["emr_text"]
-        tokens = self.tokenizer(text, padding="max_length", truncation=True, max_length=self.max_length, return_tensors="pt")
+        tokens = self.tokenizer(
+            text, 
+            padding="max_length", 
+            truncation=True, 
+            max_length=self.max_length, 
+            return_tensors="pt"
+        )
 
         # Process image
         base_dir = os.path.dirname(os.path.dirname(__file__))
@@ -41,6 +48,7 @@ class TriageDataset(Dataset):
 
         # Label 
         label = self.label_map[row["triage_level"]]
+        
         return { # removing batch dimension from tokenized tensors
             "input_ids": tokens["input_ids"].squeeze(0),
             "attention_mask": tokens["attention_mask"].squeeze(0),
