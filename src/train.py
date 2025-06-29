@@ -1,5 +1,7 @@
 import torch # PyTorch core utility for model training 
 import os
+import argparse
+import yaml
 from torch.utils.data import DataLoader, Subset # Dataloader to batch and feed data to model, random split to split dataset into train and validation sets
 from torch.nn import CrossEntropyLoss # PyTorch core utility for model training
 from torch.optim import Adam # PyTorch core utility for model training, Adam is the Optimizer a gradient descent model
@@ -44,24 +46,27 @@ def stratified_split(dataset, val_ratio=0.2, seed=42):
     tran_idx, val_idx = next(sss.split(range(len(dataset)), labels))
     return Subset(dataset, tran_idx), Subset(dataset, val_idx)
 
-def train_model(): # Function to instantiate model and data, train, validate, plot results and save the model
+def train_model(mode="multimodal"): # Function to instantiate model and data, train, validate, plot results and save the model
     config = load_config()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu") # Use GPU if available or else use CPU
     
-    dataset_dir = os.path.join(base_dir, "data", "emr_records.csv")
+    dataset_dir = os.path.join(base_dir, "data", "emr_records_extended.csv")
     dataset = TriageDataset(
-        csv_file=dataset_dir
+        csv_file=dataset_dir,
+        mode=mode
     )
 
     model = MediLLMModel(
         dropout=config["model"]["dropout"],
-        hidden_dim=config["model"]["hidden_dim"]
+        hidden_dim=config["model"]["hidden_dim"],
+        mode = mode
     ).to(device) # moves the model to selected device
  
     train_set, val_set = stratified_split(dataset)
+    batch_size = config["train"]["batch_size"]
 
-    train_loader = DataLoader(train_set, batch_size=config["train"]["batch_size"], shuffle=True) # Create data in batches to the model
-    val_loader = DataLoader(val_set, batch_size=config["train"]["batch_size"])
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True) # Create data in batches to the model
+    val_loader = DataLoader(val_set, batch_size=batch_size)
 
     criterion = CrossEntropyLoss() # Calculate difference between model prediction and true labels
     optimizer = Adam(model.parameters(), lr=config["train"]["lr"]) # Adaptive learning rate optimizer for fast-converging
@@ -72,11 +77,18 @@ def train_model(): # Function to instantiate model and data, train, validate, pl
         model.train() # Activate training the model, enable dropout
         all_preds, all_labels = [], []
 
-        for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}"): # Load a batch of text, images, and labels to GPU or CPU
-            input_ids = batch["input_ids"].to(device)
-            attn_mask = batch["attention_mask"].to(device)
-            images = batch["image"].to(device)
+        for batch in tqdm(train_loader, desc=f"[{mode}] Epoch {epoch+1}"): # Load a batch of text, images, and labels to GPU or CPU
+            input_ids = batch.get("input_ids", None)
+            attention_mask = batch.get("attention_mask", None)
+            images = batch.get("image", None)
             labels = batch["label"].to(device)
+
+            if input_ids is not None:
+                input_ids = input_ids.to(device)
+            if attention_mask is not None:
+                attention_mask = attention_mask.to(device)
+            if images is not None:
+                images = images.to(device)
             """
                 Each batch looks like this
                 {
@@ -87,7 +99,7 @@ def train_model(): # Function to instantiate model and data, train, validate, pl
                 }
             """
             optimizer.zero_grad() # Zero out gradients from previous batch
-            outputs = model(input_ids=input_ids, attention_mask=attn_mask, image=images) # Forward pass through the model
+            outputs = model(input_ids=input_ids, attention_mask=attention_mask, image=images) # Forward pass through the model
             loss = criterion(outputs, labels) # Compute loss value
             loss.backward() # Back propagation to compute gradients
             optimizer.step() # Adjust the weights using gradients
@@ -109,12 +121,21 @@ def train_model(): # Function to instantiate model and data, train, validate, pl
 
         with torch.no_grad(): # Disables autograd to save memory
             for batch in val_loader: # Load batch of validation data text, images, labels to GPU or CPU
-                input_ids = batch["input_ids"].to(device)
-                attn_mask = batch["attention_mask"].to(device)
-                images = batch["image"].to(device)
+                input_ids = batch.get("input_ids", None)
+                attention_mask = batch.get("attention_mask", None)
+                images = batch.get("image", None)
                 labels = batch["label"].to(device)
-                outputs = model(input_ids, attn_mask, images)
+
+                if input_ids is not None:
+                    input_ids = input_ids.to(device)
+                if attention_mask is not None:
+                    attention_mask = attention_mask.to(device)
+                if images is not None:
+                    images = images.to(device)
+                
+                outputs = model(input_ids=input_ids, attention_mask=attention_mask, image=images)
                 preds = torch.argmax(outputs, dim=1).cpu().numpy()
+                
                 val_preds.extend(preds)
                 val_labels.extend(labels.cpu().numpy())
 
@@ -125,19 +146,26 @@ def train_model(): # Function to instantiate model and data, train, validate, pl
         print(f"Val Accuracy: {val_acc_epoch:.4f}, F1 Score: {val_f1:.4f}")
 
     # Save model
-    model_path = os.path.join(base_dir, "medi_llm_model.pth")
+    model_path = os.path.join(base_dir, f"medi_llm_model_{mode}.pth")
     torch.save(model.state_dict(), model_path) # Saves the model weights only not total architecture to reuse later
 
     # Plot accuracy
-    save_dir = os.path.join(base_dir, "assets", "model_training_curve.png")
+    plot_path = os.path.join(base_dir, "assets", f"model_training_curve_{mode}.png")
     plt.plot(train_acc, label="Train Acc")
     plt.plot(val_acc, label="Val Acc")
     plt.legend()
-    plt.title("Training vs Validation Accuracy")
-    plt.savefig(save_dir)
+    plt.title(f"Accuracy: Train vs Validation ({mode})")
+    plt.savefig(plot_path)
+    print(f"✅ Saved training curve to {plot_path}")
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", choices=["text", "image", "multimodal"], default="multimodal")
+    return parser.parse_args()
 
 if __name__=="__main__":
-    train_model() # Only runs if file is run directly not when it is imported
+    args = parse_args()
+    train_model(mode=args.mode) # Only runs if file is run directly not when it is imported
 
 
 
