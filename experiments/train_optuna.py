@@ -67,12 +67,12 @@ def objective(trial):
         loop = tqdm(train_loader, desc=f"Epoch {epoch+1}/2", leave=False)
         for batch in loop:
             input_ids = batch["input_ids"].to(device)
-            attn_mask = batch["attention_mask"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
             images = batch["image"].to(device)
             labels = batch["label"].to(device)
 
             optimizer.zero_grad()
-            outputs = model(input_ids, attn_mask, images)
+            outputs = model(input_ids=input_ids, attention_mask=attention_mask, image=images)
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()

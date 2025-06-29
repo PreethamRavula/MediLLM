@@ -14,7 +14,7 @@ class TriageDataset(Dataset):
         self.df = pd.read_csv(csv_file) # Create a dataframe from csv file
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
         self.max_length = max_length
-        self.mode = mode
+        self.mode = mode.lower()
 
         self.transform = transform if transform else transforms.Compose([
             transforms.Resize((256, 256)), # Resize first
