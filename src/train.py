@@ -56,7 +56,7 @@ def train_model(mode="multimodal"): # Function to instantiate model and data, tr
     config = load_config()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu") # Use GPU if available or else use CPU
     
-    dataset_dir = os.path.join(base_dir, "data", "emr_records_fuzzy.csv")
+    dataset_dir = os.path.join(base_dir, "data", "emr_records_softlabels.csv")
     dataset = TriageDataset(
         csv_file=dataset_dir,
         mode=mode
@@ -152,11 +152,11 @@ def train_model(mode="multimodal"): # Function to instantiate model and data, tr
         print(f"Val Accuracy: {val_acc_epoch:.4f}, F1 Score: {val_f1:.4f}")
 
     # Save model
-    model_path = os.path.join(base_dir, f"medi_llm_model_fuzzy{mode}.pth")
+    model_path = os.path.join(base_dir, f"medi_llm_model_softlabels{mode}.pth")
     torch.save(model.state_dict(), model_path) # Saves the model weights only not total architecture to reuse later
 
     # Plot accuracy
-    plot_path = os.path.join(base_dir, "assets", f"model_training_curve_fuzzy{mode}.png")
+    plot_path = os.path.join(base_dir, "assets", f"model_training_curve_softlabels{mode}.png")
     plt.plot(train_acc, label="Train Acc")
     plt.plot(val_acc, label="Val Acc")
     plt.legend()
