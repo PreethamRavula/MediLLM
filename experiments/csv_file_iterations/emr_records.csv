@@ -1,0 +1,91 @@
+patient_id,image_path,emr_text,triage_level
+COVID-1,data/images/COVID/COVID-1.png,"The patient presents with a dry cough, fever, and shortness of breath. Symptoms began 5 days ago.",high
+COVID-2,data/images/COVID/COVID-10.png,"The patient reports loss of taste and smell, with a persistent cough.",high
+COVID-3,data/images/COVID/COVID-100.png,"The patient reports loss of taste and smell, with a persistent cough.",high
+COVID-4,data/images/COVID/COVID-1000.png,"The patient reports loss of taste and smell, with a persistent cough.",high
+COVID-5,data/images/COVID/COVID-1001.png,"The patient presents with a dry cough, fever, and shortness of breath. Symptoms began 5 days ago.",high
+COVID-6,data/images/COVID/COVID-1002.png,"The patient presents with a dry cough, fever, and shortness of breath. Symptoms began 5 days ago.",high
+COVID-7,data/images/COVID/COVID-1003.png,Progressive difficulty in breathing. Oxygen saturation is below the normal range.,high
+COVID-8,data/images/COVID/COVID-1004.png,Progressive difficulty in breathing. Oxygen saturation is below the normal range.,high
+COVID-9,data/images/COVID/COVID-1005.png,Progressive difficulty in breathing. Oxygen saturation is below the normal range.,high
+COVID-10,data/images/COVID/COVID-1006.png,"The patient reports loss of taste and smell, with a persistent cough.",high
+COVID-11,data/images/COVID/COVID-1007.png,"The patient reports loss of taste and smell, with a persistent cough.",high
+COVID-12,data/images/COVID/COVID-1008.png,"The patient reports loss of taste and smell, with a persistent cough.",high
+COVID-13,data/images/COVID/COVID-1009.png,"The patient presents with a dry cough, fever, and shortness of breath. Symptoms began 5 days ago.",high
+COVID-14,data/images/COVID/COVID-101.png,"The patient presents with a dry cough, fever, and shortness of breath. Symptoms began 5 days ago.",high
+COVID-15,data/images/COVID/COVID-1010.png,"The patient reports loss of taste and smell, with a persistent cough.",high
+COVID-16,data/images/COVID/COVID-1011.png,"The patient reports loss of taste and smell, with a persistent cough.",high
+COVID-17,data/images/COVID/COVID-1012.png,"The patient reports loss of taste and smell, with a persistent cough.",high
+COVID-18,data/images/COVID/COVID-1013.png,"The patient reports loss of taste and smell, with a persistent cough.",high
+COVID-19,data/images/COVID/COVID-1014.png,"The patient reports loss of taste and smell, with a persistent cough.",high
+COVID-20,data/images/COVID/COVID-1015.png,"The patient presents with a dry cough, fever, and shortness of breath. Symptoms began 5 days ago.",high
+COVID-21,data/images/COVID/COVID-1016.png,"The patient reports loss of taste and smell, with a persistent cough.",high
+COVID-22,data/images/COVID/COVID-1017.png,"The patient presents with a dry cough, fever, and shortness of breath. Symptoms began 5 days ago.",high
+COVID-23,data/images/COVID/COVID-1018.png,Progressive difficulty in breathing. Oxygen saturation is below the normal range.,high
+COVID-24,data/images/COVID/COVID-1019.png,"The patient presents with a dry cough, fever, and shortness of breath. Symptoms began 5 days ago.",high
+COVID-25,data/images/COVID/COVID-102.png,"The patient presents with a dry cough, fever, and shortness of breath. Symptoms began 5 days ago.",high
+COVID-26,data/images/COVID/COVID-1020.png,Progressive difficulty in breathing. Oxygen saturation is below the normal range.,high
+COVID-27,data/images/COVID/COVID-1021.png,"The patient reports loss of taste and smell, with a persistent cough.",high
+COVID-28,data/images/COVID/COVID-1022.png,"The patient presents with a dry cough, fever, and shortness of breath. Symptoms began 5 days ago.",high
+COVID-29,data/images/COVID/COVID-1023.png,"The patient presents with a dry cough, fever, and shortness of breath. Symptoms began 5 days ago.",high
+COVID-30,data/images/COVID/COVID-1024.png,"The patient presents with a dry cough, fever, and shortness of breath. Symptoms began 5 days ago.",high
+NORMAL-1,data/images/NORMAL/Normal-1.png,Clear lungs on auscultation. No signs of infection. Chest x-ray was unremarkable.,low
+NORMAL-2,data/images/NORMAL/Normal-10.png,Routine checkup with no abnormal findings. The patient denies cough or chest pain.,low
+NORMAL-3,data/images/NORMAL/Normal-100.png,Clear lungs on auscultation. No signs of infection. Chest x-ray was unremarkable.,low
+NORMAL-4,data/images/NORMAL/Normal-1000.png,No complaints. Normal vitals and physical exam.,low
+NORMAL-5,data/images/NORMAL/Normal-10000.png,No complaints. Normal vitals and physical exam.,low
+NORMAL-6,data/images/NORMAL/Normal-10001.png,Routine checkup with no abnormal findings. The patient denies cough or chest pain.,low
+NORMAL-7,data/images/NORMAL/Normal-10002.png,Routine checkup with no abnormal findings. The patient denies cough or chest pain.,low
+NORMAL-8,data/images/NORMAL/Normal-10003.png,Clear lungs on auscultation. No signs of infection. Chest x-ray was unremarkable.,low
+NORMAL-9,data/images/NORMAL/Normal-10004.png,Clear lungs on auscultation. No signs of infection. Chest x-ray was unremarkable.,low
+NORMAL-10,data/images/NORMAL/Normal-10005.png,No complaints. Normal vitals and physical exam.,low
+NORMAL-11,data/images/NORMAL/Normal-10006.png,No complaints. Normal vitals and physical exam.,low
+NORMAL-12,data/images/NORMAL/Normal-10007.png,No complaints. Normal vitals and physical exam.,low
+NORMAL-13,data/images/NORMAL/Normal-10008.png,Routine checkup with no abnormal findings. The patient denies cough or chest pain.,low
+NORMAL-14,data/images/NORMAL/Normal-10009.png,Clear lungs on auscultation. No signs of infection. Chest x-ray was unremarkable.,low
+NORMAL-15,data/images/NORMAL/Normal-1001.png,Clear lungs on auscultation. No signs of infection. Chest x-ray was unremarkable.,low
+NORMAL-16,data/images/NORMAL/Normal-10010.png,Clear lungs on auscultation. No signs of infection. Chest x-ray was unremarkable.,low
+NORMAL-17,data/images/NORMAL/Normal-10011.png,Routine checkup with no abnormal findings. The patient denies cough or chest pain.,low
+NORMAL-18,data/images/NORMAL/Normal-10012.png,Routine checkup with no abnormal findings. The patient denies cough or chest pain.,low
+NORMAL-19,data/images/NORMAL/Normal-10013.png,No complaints. Normal vitals and physical exam.,low
+NORMAL-20,data/images/NORMAL/Normal-10014.png,No complaints. Normal vitals and physical exam.,low
+NORMAL-21,data/images/NORMAL/Normal-10015.png,Clear lungs on auscultation. No signs of infection. Chest x-ray was unremarkable.,low
+NORMAL-22,data/images/NORMAL/Normal-10016.png,Clear lungs on auscultation. No signs of infection. Chest x-ray was unremarkable.,low
+NORMAL-23,data/images/NORMAL/Normal-10017.png,No complaints. Normal vitals and physical exam.,low
+NORMAL-24,data/images/NORMAL/Normal-10018.png,No complaints. Normal vitals and physical exam.,low
+NORMAL-25,data/images/NORMAL/Normal-10019.png,Clear lungs on auscultation. No signs of infection. Chest x-ray was unremarkable.,low
+NORMAL-26,data/images/NORMAL/Normal-1002.png,Routine checkup with no abnormal findings. The patient denies cough or chest pain.,low
+NORMAL-27,data/images/NORMAL/Normal-10020.png,No complaints. Normal vitals and physical exam.,low
+NORMAL-28,data/images/NORMAL/Normal-10021.png,Clear lungs on auscultation. No signs of infection. Chest x-ray was unremarkable.,low
+NORMAL-29,data/images/NORMAL/Normal-10022.png,Clear lungs on auscultation. No signs of infection. Chest x-ray was unremarkable.,low
+NORMAL-30,data/images/NORMAL/Normal-10023.png,No complaints. Normal vitals and physical exam.,low
+VIRAL PNEUMONIA-1,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1.png,"Mild fever, chest tightness, and dry cough for the past 3 days. Oxygen levels are normal.",medium
+VIRAL PNEUMONIA-2,data/images/VIRAL PNEUMONIA/Viral Pneumonia-10.png,"Mild fever, chest tightness, and dry cough for the past 3 days. Oxygen levels are normal.",medium
+VIRAL PNEUMONIA-3,data/images/VIRAL PNEUMONIA/Viral Pneumonia-100.png,"Mild fever, chest tightness, and dry cough for the past 3 days. Oxygen levels are normal.",medium
+VIRAL PNEUMONIA-4,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1000.png,"Mild fever, chest tightness, and dry cough for the past 3 days. Oxygen levels are normal.",medium
+VIRAL PNEUMONIA-5,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1001.png,The X-ray shows patchy infiltrates in the lungs. The patient is recovering from a recent viral infection.,medium
+VIRAL PNEUMONIA-6,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1002.png,"Mild fever, chest tightness, and dry cough for the past 3 days. Oxygen levels are normal.",medium
+VIRAL PNEUMONIA-7,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1003.png,"Mild fever, chest tightness, and dry cough for the past 3 days. Oxygen levels are normal.",medium
+VIRAL PNEUMONIA-8,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1004.png,Crackles are auscultated in the lower lobes. The patient presents with fatigue and mild respiratory distress.,medium
+VIRAL PNEUMONIA-9,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1005.png,The X-ray shows patchy infiltrates in the lungs. The patient is recovering from a recent viral infection.,medium
+VIRAL PNEUMONIA-10,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1006.png,Crackles are auscultated in the lower lobes. The patient presents with fatigue and mild respiratory distress.,medium
+VIRAL PNEUMONIA-11,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1007.png,"Mild fever, chest tightness, and dry cough for the past 3 days. Oxygen levels are normal.",medium
+VIRAL PNEUMONIA-12,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1008.png,Crackles are auscultated in the lower lobes. The patient presents with fatigue and mild respiratory distress.,medium
+VIRAL PNEUMONIA-13,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1009.png,The X-ray shows patchy infiltrates in the lungs. The patient is recovering from a recent viral infection.,medium
+VIRAL PNEUMONIA-14,data/images/VIRAL PNEUMONIA/Viral Pneumonia-101.png,The X-ray shows patchy infiltrates in the lungs. The patient is recovering from a recent viral infection.,medium
+VIRAL PNEUMONIA-15,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1010.png,"Mild fever, chest tightness, and dry cough for the past 3 days. Oxygen levels are normal.",medium
+VIRAL PNEUMONIA-16,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1011.png,"Mild fever, chest tightness, and dry cough for the past 3 days. Oxygen levels are normal.",medium
+VIRAL PNEUMONIA-17,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1012.png,Crackles are auscultated in the lower lobes. The patient presents with fatigue and mild respiratory distress.,medium
+VIRAL PNEUMONIA-18,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1013.png,"Mild fever, chest tightness, and dry cough for the past 3 days. Oxygen levels are normal.",medium
+VIRAL PNEUMONIA-19,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1014.png,"Mild fever, chest tightness, and dry cough for the past 3 days. Oxygen levels are normal.",medium
+VIRAL PNEUMONIA-20,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1015.png,The X-ray shows patchy infiltrates in the lungs. The patient is recovering from a recent viral infection.,medium
+VIRAL PNEUMONIA-21,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1016.png,"Mild fever, chest tightness, and dry cough for the past 3 days. Oxygen levels are normal.",medium
+VIRAL PNEUMONIA-22,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1017.png,The X-ray shows patchy infiltrates in the lungs. The patient is recovering from a recent viral infection.,medium
+VIRAL PNEUMONIA-23,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1018.png,Crackles are auscultated in the lower lobes. The patient presents with fatigue and mild respiratory distress.,medium
+VIRAL PNEUMONIA-24,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1019.png,Crackles are auscultated in the lower lobes. The patient presents with fatigue and mild respiratory distress.,medium
+VIRAL PNEUMONIA-25,data/images/VIRAL PNEUMONIA/Viral Pneumonia-102.png,Crackles are auscultated in the lower lobes. The patient presents with fatigue and mild respiratory distress.,medium
+VIRAL PNEUMONIA-26,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1020.png,The X-ray shows patchy infiltrates in the lungs. The patient is recovering from a recent viral infection.,medium
+VIRAL PNEUMONIA-27,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1021.png,Crackles are auscultated in the lower lobes. The patient presents with fatigue and mild respiratory distress.,medium
+VIRAL PNEUMONIA-28,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1022.png,The X-ray shows patchy infiltrates in the lungs. The patient is recovering from a recent viral infection.,medium
+VIRAL PNEUMONIA-29,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1023.png,"Mild fever, chest tightness, and dry cough for the past 3 days. Oxygen levels are normal.",medium
+VIRAL PNEUMONIA-30,data/images/VIRAL PNEUMONIA/Viral Pneumonia-1024.png,"Mild fever, chest tightness, and dry cough for the past 3 days. Oxygen levels are normal.",medium
