@@ -36,10 +36,11 @@ def stratified_split(dataset, val_ratio=0.2, seed=42, label_column="triage_level
 
 def objective(trial):
     wandb.init(
-        project="mediLLM",
-        name=f"trial-{trial.number}-v3-{wandb.util.generate_id()}",
-        group="Final_augmented_trials",
+        project="mediLLM-v2",
+        name=f"trial-{trial.number}-v4-{wandb.util.generate_id()}",
+        group="SoftLabelTrials",
         config={
+            "dataset_version": "softlabels",
             "dataset_size": 900
         }
     )
@@ -53,7 +54,7 @@ def objective(trial):
     model = MediLLMModel(dropout=dropout, hidden_dim=hidden_dim).to(device)
     wandb.watch(model)
 
-    dataset = TriageDataset(os.path.join(base_dir, "data", "emr_records_extended.csv"))
+    dataset = TriageDataset(os.path.join(base_dir, "data", "emr_records.csv"))
     train_set, val_set = stratified_split(dataset)
 
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
@@ -85,17 +86,17 @@ def objective(trial):
     with torch.no_grad():
         for batch in tqdm(val_loader, desc="Validating", leave=False):
             input_ids = batch["input_ids"].to(device)
-            attn_mask = batch["attention_mask"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
             images = batch["image"].to(device)
             labels = batch["label"].to(device)
 
-            outputs = model(input_ids, attn_mask, images)
+            outputs = model(input_ids=input_ids, attention_mask=attention_mask, image=images)
             preds = torch.argmax(outputs, dim=1).cpu().numpy()
             all_preds.extend(preds)
             all_labels.extend(labels.cpu().numpy())
 
     f1 = f1_score(all_labels, all_preds, average="weighted")
-    print("f\n[Trial {trial.number}] Classification Report:")
+    print(f"\n[Trial {trial.number}] Classification Report:")
     print(classification_report(all_labels, all_preds, target_names=["low", "medium", "high"]))
 
     cm = confusion_matrix(all_labels, all_preds)
@@ -118,7 +119,6 @@ def objective(trial):
         "hidden_dim": hidden_dim,
         "batch_size": batch_size
     })
-    wandb.finish()
     return f1
 
 def get_args():
@@ -130,15 +130,18 @@ if __name__=="__main__":
     args = get_args()
 
     study = optuna.create_study(
-        study_name="mediLLM_final_stratified",
+        study_name="mediLLM_v2",
         direction="maximize"
     )
     with tqdm(total=args.n_trials, desc="Optuna Trials") as pbar:
         def wrapped_objective(trial):
-            result = objective(trial)
-            pbar.update(1)
-            return result
-        
+            try:
+                result = objective(trial)
+                return result
+            finally:
+                wandb.finish()
+                pbar.update(1)
+    
         study.optimize(wrapped_objective, n_trials=args.n_trials)
 
     print("Best F1 score achieved:", study.best_value)
