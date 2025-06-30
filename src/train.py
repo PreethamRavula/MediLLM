@@ -1,5 +1,13 @@
 import torch # PyTorch core utility for model training 
 import os
+import sys
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+# Automatically add Project root to python import path
+base_dir = os.path.dirname(os.path.dirname(__file__))
+if base_dir not in sys.path:
+    sys.path.append(base_dir)
+
 import argparse
 import yaml
 from torch.utils.data import DataLoader, Subset # Dataloader to batch and feed data to model, random split to split dataset into train and validation sets
@@ -11,8 +19,6 @@ from tqdm import tqdm # loading bar for loops
 import matplotlib.pyplot as plt # for plotting
 from src.triage_dataset import TriageDataset # Dataset Class
 from src.multimodal_model import MediLLMModel # Mutlimodal Model
-
-base_dir = os.path.dirname(os.path.dirname(__file__)) # Project directory
 
 def load_config():
     config_dir = os.path.join(base_dir, "config")
