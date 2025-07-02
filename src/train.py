@@ -1,50 +1,69 @@
 import torch # PyTorch core utility for model training 
 import os
 import sys
+import yaml
+import argparse
+import matplotlib.pyplot as plt # for plotting
 
+from tqdm import tqdm # loading bar for loops
+from torch.utils.data import DataLoader, Subset # Dataloader to batch and feed data to model, random split to split dataset into train and validation sets
+from torch.nn import CrossEntropyLoss # PyTorch core utility for model training
+from torch.optim import Adam # PyTorch core utility for model training, Adam is the Optimizer a gradient descent model
+from sklearn.metrics import accuracy_score, f1_score # Evaluation metrics
+from sklearn.model_selection import StratifiedShuffleSplit
+
+
+# Setup base path
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 # Automatically add Project root to python import path
 base_dir = os.path.dirname(os.path.dirname(__file__))
 if base_dir not in sys.path:
     sys.path.append(base_dir)
 
-import argparse
-import yaml
-from torch.utils.data import DataLoader, Subset # Dataloader to batch and feed data to model, random split to split dataset into train and validation sets
-from torch.nn import CrossEntropyLoss # PyTorch core utility for model training
-from torch.optim import Adam # PyTorch core utility for model training, Adam is the Optimizer a gradient descent model
-from sklearn.metrics import accuracy_score, f1_score # Evaluation metrics
-from sklearn.model_selection import StratifiedShuffleSplit
-from tqdm import tqdm # loading bar for loops
-import matplotlib.pyplot as plt # for plotting
+
 from src.triage_dataset import TriageDataset # Dataset Class
 from src.multimodal_model import MediLLMModel # Mutlimodal Model
 
-def load_config():
-    config_dir = os.path.join(base_dir, "config")
-    config_path = os.path.join(config_dir, "config.yaml")
+def load_config(mode):
+    config_path = os.path.join(base_dir, "config", "config.yaml")
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
 
-    # Make sure config directory exists in the root
-    os.makedirs(config_dir, exist_ok=True)
-
-     # If the config file doesn't exist, create a default one
+    # If the config file doesn't exist, create it defaults for all modes
     if not os.path.exists(config_path):
+        default_config = {
+            "text": {
+                "lr": 2e-5,
+                "dropout": 0.3,
+                "hidden_dim": 256,
+                "batch_size": 8,
+                "epochs": 5
+            },
+            "image": {
+                "lr": 2e-5,
+                "dropout": 0.3,
+                "hidden_dim": 256,
+                "batch_size": 8,
+                "epochs": 5
+            },
+            "multimodal": {
+                "lr": 2e-5,
+                "dropout": 0.3,
+                "hidden_dim": 256,
+                "batch_size": 8,
+                "epochs": 5
+            }
+        }
         with open(config_path, "w") as f:
-            f.write(
-                "model:\n"
-                "  dropout: 0.3\n"
-                "  hidden_dim: 256\n\n"
-                "train:\n"
-                "  lr: 2e-5\n"
-                "  batch_size: 8\n"
-                "  epochs: 5\n\n"
-                "wandb:\n"
-                " project: medi-llm-final\n"
-            )
+            yaml.dump(default_config, f)
     
     # otherwise export to yaml
     with open(config_path, "r") as f:
-        return yaml.safe_load(f)
+        config = yaml.safe_load(f)
+
+    if mode not in config:
+        raise ValueError(f"No config found for mode '{mode}' in config.yaml")
+    
+    return config[mode]
 
 def stratified_split(dataset, val_ratio=0.2, seed=42):
     labels = [dataset.df.iloc[i]["triage_level"] for i in range(len(dataset))]
@@ -53,33 +72,33 @@ def stratified_split(dataset, val_ratio=0.2, seed=42):
     return Subset(dataset, tran_idx), Subset(dataset, val_idx)
 
 def train_model(mode="multimodal"): # Function to instantiate model and data, train, validate, plot results and save the model
-    config = load_config()
+    cfg = load_config(mode)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu") # Use GPU if available or else use CPU
     
-    dataset_dir = os.path.join(base_dir, "data", "emr_records_softlabels.csv")
+    dataset_dir = os.path.join(base_dir, "data", "emr_records.csv")
     dataset = TriageDataset(
         csv_file=dataset_dir,
         mode=mode
     )
 
     model = MediLLMModel(
-        dropout=config["model"]["dropout"],
-        hidden_dim=config["model"]["hidden_dim"],
+        dropout=cfg["dropout"],
+        hidden_dim=cfg["hidden_dim"],
         mode = mode
     ).to(device) # moves the model to selected device
  
     train_set, val_set = stratified_split(dataset)
-    batch_size = config["train"]["batch_size"]
+    batch_size = cfg["batch_size"]
 
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True) # Create data in batches to the model
     val_loader = DataLoader(val_set, batch_size=batch_size)
 
     criterion = CrossEntropyLoss() # Calculate difference between model prediction and true labels
-    optimizer = Adam(model.parameters(), lr=config["train"]["lr"]) # Adaptive learning rate optimizer for fast-converging
+    optimizer = Adam(model.parameters(), lr=cfg["lr"]) # Adaptive learning rate optimizer for fast-converging
 
     train_acc, val_acc = [], [] # Lists to store accuracy per epoch for plotting
 
-    for epoch in range(config["train"]["epochs"]):
+    for epoch in range(cfg["epochs"]):
         model.train() # Activate training the model, enable dropout
         all_preds, all_labels = [], []
 
@@ -152,11 +171,11 @@ def train_model(mode="multimodal"): # Function to instantiate model and data, tr
         print(f"Val Accuracy: {val_acc_epoch:.4f}, F1 Score: {val_f1:.4f}")
 
     # Save model
-    model_path = os.path.join(base_dir, f"medi_llm_model_softlabels{mode}.pth")
+    model_path = os.path.join(base_dir, f"medi_llm_model_{mode}.pth")
     torch.save(model.state_dict(), model_path) # Saves the model weights only not total architecture to reuse later
 
     # Plot accuracy
-    plot_path = os.path.join(base_dir, "assets", f"model_training_curve_softlabels{mode}.png")
+    plot_path = os.path.join(base_dir, "assets", f"model_training_curve_{mode}.png")
     plt.plot(train_acc, label="Train Acc")
     plt.plot(val_acc, label="Val Acc")
     plt.legend()
