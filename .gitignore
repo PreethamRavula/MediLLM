@@ -18,3 +18,9 @@ logs/
 
 # Model files
 *.pth
+
+# Environment files
+.env 
+
+# logs
+*.log 
