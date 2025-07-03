@@ -37,7 +37,7 @@ def stratified_split(dataset, val_ratio=0.2, seed=42, label_column="triage_level
     train_idx, val_idx = next(sss.split(range(len(dataset)), labels))
     return Subset(dataset, train_idx), Subset(dataset, val_idx)
 
-def objective(trial):
+def objective(trial, mode):
     wandb.init(
         project=f"mediLLM-tune-{mode}",
         name=f"{mode}-trial-{trial.number}-v5-{wandb.util.generate_id()}",
