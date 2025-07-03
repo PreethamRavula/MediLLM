@@ -1,9 +1,18 @@
-model:
-  dropout: 0.472565462754134
+text:
+  lr: 1.8711332079056742e-05
+  dropout: 0.33274218952802376
   hidden_dim: 512
-train:
+  batch_size: 8
+  epochs: 5
+image:
+  lr: 9.99473327273459e-05
+  dropout: 0.4451972461446767
+  hidden_dim: 256
   batch_size: 4
   epochs: 5
-  lr: 7.614948159030753e-05
-wandb:
-  project: medi-llm-final
+multimodal:
+  lr: 3.7443867882936816e-05
+  dropout: 0.29940046032586376
+  hidden_dim: 512
+  batch_size: 4
+  epochs: 5
