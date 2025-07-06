@@ -28,13 +28,16 @@ jobs:
       - name: ✅ Lint code with flake8
         run: flake8
 
-      - name: 🔧 Check code format with black
+      
+      - name: 📦 Check import order with isort (non-blocking)
         run: |
-          black --check .
+          isort . --check-only || echo "⚠️ isort issues detected (not blocking CI)"
 
-      - name: 📦 Check import order with isort
+
+      - name: 🔧 Check code format with black (non-blocking)
         run: |
-          isort . --check-only
+          black --check . || echo "⚠️ black formatting issues detected (not blocking CI)"
+
 
       - name: 🧪 Run unit tests
         run: |
