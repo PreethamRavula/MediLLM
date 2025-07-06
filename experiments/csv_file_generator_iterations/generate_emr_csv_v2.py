@@ -39,6 +39,7 @@ neutral_noise = [
     "Patient expresses concern about possible flu.",
 ]
 
+
 # ---Patient random token genrator ---
 def random_token():
     prefix = "ID"
@@ -46,11 +47,13 @@ def random_token():
     digits = ''.join(random.choices(string.digits, k=2))
     return f"{prefix}-{letters}{digits}"
 
+
 # Vitals (blurred)
 def get_oxygen(label):
     base = {"COVID": (85, 94), "VIRAL PNEUMONIA": (89, 96), "NORMAL": (96, 99)}
     min_, max_ = base[label]
-    return min(100, max(80, random.randint(min_-1, max_+1)))
+    return min(100, max(80, random.randint(min_ - 1, max_ + 1)))
+
 
 def get_temp(label):
     if label == "NORMAL":
@@ -59,8 +62,14 @@ def get_temp(label):
         min_, max_ = 99.0, 103.0
     return round(random.uniform(min_ - 0.6, max_ + 0.6), 1)
 
-def get_age(): return random.randint(18, 85)
-def get_days(): return random.randint(1, 10)
+
+def get_age():
+    return random.randint(18, 85)
+
+
+def get_days():
+    return random.randint(1, 10)
+
 
 # EMR generator
 def build_emr(label, i):
@@ -102,6 +111,7 @@ def build_emr(label, i):
     random.shuffle(body[1:])
     return " ".join(body)
 
+
 # Generate records
 records = []
 for label, img_dir in categories.items():
@@ -110,7 +120,7 @@ for label, img_dir in categories.items():
         image_path = str(random.choice(image_files).relative_to(IMAGES_DIR.parent.parent))
         text = build_emr(label, i)
         triage = triage_map[label]
-        records.append([f"{label}-{i+1}", image_path, text, triage])
+        records.append([f"{label}-{i + 1}", image_path, text, triage])
 
 # Shuffle + Write
 random.shuffle(records)

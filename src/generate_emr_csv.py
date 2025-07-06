@@ -137,7 +137,7 @@ def generate_dataset():
             )
             text = build_emr(label, i)
             triage = triage_map[label]
-            records.append([f"{label}-{i+1}", image_path, text, triage])
+            records.append([f"{label}-{i + 1}", image_path, text, triage])
 
     # Shuffle + write
     random.shuffle(records)

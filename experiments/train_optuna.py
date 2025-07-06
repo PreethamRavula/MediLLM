@@ -1,18 +1,18 @@
 import os
 import sys
-import torch 
+import torch
 import optuna
 import yaml
 import json
-import wandb 
+import wandb
 import argparse
-import matplotlib.pyplot as plt 
-import seaborn as sns 
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 from tqdm import tqdm
-from torch.utils.data import DataLoader, Subset 
+from torch.utils.data import DataLoader, Subset
 from torch.nn import CrossEntropyLoss
-from torch.optim import Adam 
+from torch.optim import Adam
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
 
@@ -30,12 +30,13 @@ from src.multimodal_model import MediLLMModel
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+
 def stratified_split(dataset, val_ratio=0.2, seed=42, label_column="triage_level"):
-    label_map = {"low": 0, "medium": 1, "high": 2}
     labels = [dataset.df.iloc[i][label_column] for i in range(len(dataset))]
     sss = StratifiedShuffleSplit(n_splits=1, test_size=val_ratio, random_state=seed)
     train_idx, val_idx = next(sss.split(range(len(dataset)), labels))
     return Subset(dataset, train_idx), Subset(dataset, val_idx)
+
 
 def objective(trial, mode):
     wandb.init(
@@ -69,7 +70,7 @@ def objective(trial, mode):
 
     for epoch in range(2):
         model.train()
-        loop = tqdm(train_loader, desc=f"[{mode}] Epoch {epoch+1}/2", leave=False)
+        loop = tqdm(train_loader, desc=f"[{mode}] Epoch {epoch + 1}/2", leave=False)
         for batch in loop:
             input_ids = batch.get("input_ids", None)
             attention_mask = batch.get("attention_mask", None)
@@ -136,8 +137,8 @@ def objective(trial, mode):
     plt.ylabel("True")
     wandb.log({f"{mode}_confusion_matrix/trial_{trial.number}": wandb.Image(plt)})
     plt.close()
-    
     return f1
+
 
 def get_args():
     parser = argparse.ArgumentParser(description="Run Optuna hyperparameter search")
@@ -145,9 +146,10 @@ def get_args():
     parser.add_argument("--mode", type=str, choices=["text", "image", "multimodal"], required=True, help="Input mode")
     return parser.parse_args()
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     args = get_args()
-    mode = args.mode 
+    mode = args.mode
 
     study = optuna.create_study(
         study_name=f"mediLLM_{mode}_optuna",
@@ -160,7 +162,6 @@ if __name__=="__main__":
             finally:
                 wandb.finish()
                 pbar.update(1)
-    
         study.optimize(wrapped_objective, n_trials=args.n_trials)
 
     print(f"✅ Best F1 score for {mode}: {study.best_value}")
@@ -196,7 +197,6 @@ if __name__=="__main__":
 
     # Export to config.yaml
     config_path = os.path.join(base_dir, "config", "config.yaml")
-    
     # Make sure config directory exists in the root
     os.makedirs(os.path.dirname(config_path), exist_ok=True)
 
@@ -218,6 +218,3 @@ if __name__=="__main__":
         yaml.dump(config, f, sort_keys=False)
 
     print(f"✅ Best hyperparameters for [{mode}] saved in config.yaml")
-    
-
-    

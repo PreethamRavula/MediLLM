@@ -123,7 +123,7 @@ def train_model(mode="multimodal"):
         all_preds, all_labels = [], []
 
         for batch in tqdm(
-            train_loader, desc=f"[{mode}] Epoch {epoch+1}"
+            train_loader, desc=f"[{mode}] Epoch {epoch + 1}"
         ):  # Load a batch of text, images, and labels to GPU or CPU
             input_ids = batch.get("input_ids", None)
             attention_mask = batch.get("attention_mask", None)
