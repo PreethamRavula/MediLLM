@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader, Subset
 from torch.nn import CrossEntropyLoss
 from torch.optim import Adam 
 from sklearn.model_selection import StratifiedShuffleSplit
-from sklearn.metrics import accuracy_score, f1_score, classification_report, confusion_matrix
+from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
 
 
 # Setup base path

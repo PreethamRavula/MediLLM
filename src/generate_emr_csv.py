@@ -29,7 +29,7 @@ shared_symptoms = [
     "Vital signs mostly stable; slight variation in temperature.",
 ]
 
-# Overlapping diagnosis clues
+# Overlapping diagnosis clues to add ambiguity
 shared_diagnosis = [
     "Symptoms could relate to a range of viral infections.",
     "Presentation not distinctly matching any single infection.",
@@ -120,28 +120,39 @@ def build_emr(label, i):
 
 
 # Generate records
-records = []
-for label, img_dir in categories.items():
-    image_files = sorted(
-        [
-            f
-            for f in img_dir.glob("*")
-            if f.suffix.lower() in [".png", ".jpg", ".jpeg"]
-        ]
-    )
-    for i in range(SAMPLES_PER_CLASS):
-        image_path = str(
-            random.choice(image_files).relative_to(IMAGES_DIR.parent.parent)
+def generate_dataset():
+    records = []
+    for label, img_dir in categories.items():
+        image_files = sorted(
+            [
+                f
+                for f in img_dir.glob("*")
+                if f.suffix.lower() in [".png", ".jpg", ".jpeg"]
+            ]
         )
-        text = build_emr(label, i)
-        triage = triage_map[label]
-        records.append([f"{label}-{i+1}", image_path, text, triage])
+        for i in range(SAMPLES_PER_CLASS):
+            image_path = str(
+                random.choice(image_files)
+                .relative_to(IMAGES_DIR.parent.parent)
+            )
+            text = build_emr(label, i)
+            triage = triage_map[label]
+            records.append([f"{label}-{i+1}", image_path, text, triage])
 
-# Shuffle + write
-random.shuffle(records)
-with open(OUTPUT_FILE, "w", newline="") as f:
-    writer = csv.writer(f)
-    writer.writerow(["patient_id", "image_path", "emr_text", "triage_level"])
-    writer.writerows(records)
+    # Shuffle + write
+    random.shuffle(records)
+    with open(OUTPUT_FILE, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            "patient_id",
+            "image_path",
+            "emr_text",
+            "triage_level"
+        ])
+        writer.writerows(records)
 
-print(f"✅ Softlabel EMR dataset generated at {OUTPUT_FILE}")
+    print(f"✅ Softlabel EMR dataset generated at {OUTPUT_FILE}")
+
+
+if __name__ == "__main__":
+    generate_dataset()
