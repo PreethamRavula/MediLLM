@@ -44,9 +44,7 @@ def test_text_only(dummy_inputs):
         input_ids=dummy_inputs["input_ids"],
         attention_mask=dummy_inputs["attention_mask"],
     )
-    assert outputs.shape == (BATCH_SIZE, 3), (
-        "Incorrect output shape for text-only mode"
-    )
+    assert outputs.shape == (BATCH_SIZE, 3), "Incorrect output shape for text-only mode"
 
 
 def test_image_only(dummy_inputs):

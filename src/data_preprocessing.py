@@ -33,11 +33,7 @@ def preprocess_text(text):
     if not isinstance(text, str):
         raise ValueError("Input text must be a string.")
     return tokenizer(
-        text,
-        truncation=True,
-        padding="max_length",
-        max_length=128,
-        return_tensors="pt"
+        text, truncation=True, padding="max_length", max_length=128, return_tensors="pt"
     )
 
 
@@ -60,9 +56,7 @@ if __name__ == "__main__":
     print("Data loaded successfully.")
     # apply function applies to each row in the 'image_path' column and joins
     # the base directory with the relative path
-    df["image_path"] = df["image_path"].apply(
-        lambda p: os.path.join(base_dir, p)
-    )
+    df["image_path"] = df["image_path"].apply(lambda p: os.path.join(base_dir, p))
     print("Sample record:")
     print(df.iloc[0])
 

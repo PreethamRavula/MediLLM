@@ -132,8 +132,7 @@ def generate_dataset():
         )
         for i in range(SAMPLES_PER_CLASS):
             image_path = str(
-                random.choice(image_files)
-                .relative_to(IMAGES_DIR.parent.parent)
+                random.choice(image_files).relative_to(IMAGES_DIR.parent.parent)
             )
             text = build_emr(label, i)
             triage = triage_map[label]
@@ -143,12 +142,7 @@ def generate_dataset():
     random.shuffle(records)
     with open(OUTPUT_FILE, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow([
-            "patient_id",
-            "image_path",
-            "emr_text",
-            "triage_level"
-        ])
+        writer.writerow(["patient_id", "image_path", "emr_text", "triage_level"])
         writer.writerows(records)
 
     print(f"✅ Softlabel EMR dataset generated at {OUTPUT_FILE}")

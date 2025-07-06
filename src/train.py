@@ -166,9 +166,7 @@ def train_model(mode="multimodal"):
             )  # Save labels for metric computation
 
         # Calculating classification metrics (Accuracy and F1)
-        acc = accuracy_score(
-            all_labels, all_preds
-        )  # Evaluate full-epoch performance
+        acc = accuracy_score(all_labels, all_preds)  # Evaluate full-epoch performance
         f1 = f1_score(all_labels, all_preds, average="weighted")
         # 1) binary: Binary Classification(F1 score of +ve class only)
         # 2) macro: Computes F1 for each class independently, then averages,
@@ -240,9 +238,7 @@ def train_model(mode="multimodal"):
     )  # Saves the model weights only not total architecture to reuse later
 
     # Plot accuracy
-    plot_path = os.path.join(
-        base_dir, "assets", f"model_training_curve_{mode}.png"
-    )
+    plot_path = os.path.join(base_dir, "assets", f"model_training_curve_{mode}.png")
     plt.plot(train_acc, label="Train Acc")
     plt.plot(val_acc, label="Val Acc")
     plt.legend()

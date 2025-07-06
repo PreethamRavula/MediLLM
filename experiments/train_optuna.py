@@ -43,11 +43,7 @@ def objective(trial, mode):
         project=f"mediLLM-tune-{mode}",
         name=f"{mode}-trial-{trial.number}-v5-{wandb.util.generate_id()}",
         group="SoftLabelTrials",
-        config={
-            "dataset_version": "softlabels",
-            "dataset_size": 900,
-            "mode": mode
-        }
+        config={"dataset_version": "softlabels", "dataset_size": 900, "mode": mode},
     )
 
     # --- Hyperparameters ---
@@ -85,7 +81,9 @@ def objective(trial, mode):
                 images = images.to(device)
 
             optimizer.zero_grad()
-            outputs = model(input_ids=input_ids, attention_mask=attention_mask, image=images)
+            outputs = model(
+                input_ids=input_ids, attention_mask=attention_mask, image=images
+            )
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
@@ -108,7 +106,9 @@ def objective(trial, mode):
             if images is not None:
                 images = images.to(device)
 
-            outputs = model(input_ids=input_ids, attention_mask=attention_mask, image=images)
+            outputs = model(
+                input_ids=input_ids, attention_mask=attention_mask, image=images
+            )
             preds = torch.argmax(outputs, dim=1).cpu().numpy()
             all_preds.extend(preds)
             all_labels.extend(labels.cpu().numpy())
@@ -117,21 +117,28 @@ def objective(trial, mode):
     acc = accuracy_score(all_labels, all_preds)
 
     # Log to W&B and Optuna
-    wandb.log({
-        "val_f1_score": f1,
-        "val_accuracy": acc,
-        "lr": lr,
-        "dropout": dropout,
-        "hidden_dim": hidden_dim,
-        "batch_size": batch_size
-    })
+    wandb.log(
+        {
+            "val_f1_score": f1,
+            "val_accuracy": acc,
+            "lr": lr,
+            "dropout": dropout,
+            "hidden_dim": hidden_dim,
+            "batch_size": batch_size,
+        }
+    )
 
     # Confusion Matrix
     cm = confusion_matrix(all_labels, all_preds)
     plt.figure(figsize=(6, 5))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
-                xticklabels=["low", "medium", "high"],
-                yticklabels=["low", "medium", "high"])
+    sns.heatmap(
+        cm,
+        annot=True,
+        fmt="d",
+        cmap="Blues",
+        xticklabels=["low", "medium", "high"],
+        yticklabels=["low", "medium", "high"],
+    )
     plt.title(f"Confusion Matrix - {mode} Trial {trial.number}")
     plt.xlabel("Predicted")
     plt.ylabel("True")
@@ -142,8 +149,16 @@ def objective(trial, mode):
 
 def get_args():
     parser = argparse.ArgumentParser(description="Run Optuna hyperparameter search")
-    parser.add_argument("--n_trials", type=int, default=10, help="Number of Optuna trials to run")
-    parser.add_argument("--mode", type=str, choices=["text", "image", "multimodal"], required=True, help="Input mode")
+    parser.add_argument(
+        "--n_trials", type=int, default=10, help="Number of Optuna trials to run"
+    )
+    parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["text", "image", "multimodal"],
+        required=True,
+        help="Input mode",
+    )
     return parser.parse_args()
 
 
@@ -152,16 +167,17 @@ if __name__ == "__main__":
     mode = args.mode
 
     study = optuna.create_study(
-        study_name=f"mediLLM_{mode}_optuna",
-        direction="maximize"
+        study_name=f"mediLLM_{mode}_optuna", direction="maximize"
     )
     with tqdm(total=args.n_trials, desc=f"Optuna Trials [{mode}]") as pbar:
+
         def wrapped_objective(trial):
             try:
                 return objective(trial, mode)
             finally:
                 wandb.finish()
                 pbar.update(1)
+
         study.optimize(wrapped_objective, n_trials=args.n_trials)
 
     print(f"✅ Best F1 score for {mode}: {study.best_value}")
@@ -176,7 +192,7 @@ if __name__ == "__main__":
         "dropout": float(study.best_params["dropout"]),
         "hidden_dim": int(study.best_params["hidden_dim"]),
         "batch_size": int(study.best_params["bs"]),
-        "epochs": 5
+        "epochs": 5,
     }
 
     # Load existing or start new
@@ -210,7 +226,7 @@ if __name__ == "__main__":
         "dropout": float(study.best_params["dropout"]),
         "hidden_dim": int(study.best_params["hidden_dim"]),
         "batch_size": int(study.best_params["bs"]),
-        "epochs": 5
+        "epochs": 5,
     }
 
     # Export to config.yaml

@@ -39,9 +39,7 @@ class TriageDataset(Dataset):
                         scale=(0.9, 1.0),
                         interpolation=InterpolationMode.BILINEAR,
                     ),  # Slight zoom-in/out
-                    transforms.RandomRotation(
-                        degrees=10
-                    ),  # + or - 10° rotation
+                    transforms.RandomRotation(degrees=10),  # + or - 10° rotation
                     transforms.ColorJitter(
                         brightness=0.3, contrast=0.3
                     ),  # simulate slight imaging variations

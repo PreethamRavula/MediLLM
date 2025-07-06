@@ -24,9 +24,7 @@ def test_dataset_loading(mode):
     sample = dataset[0]
 
     if mode in ["text", "multimodal"]:
-        assert "input_ids" in sample, (
-            "Missing input_ids in text/multimodal mode"
-        )
+        assert "input_ids" in sample, "Missing input_ids in text/multimodal mode"
         assert (
             "attention_mask" in sample
         ), "Missing attention_mask in text/multimodal mode"

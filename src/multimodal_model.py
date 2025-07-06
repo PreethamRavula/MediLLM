@@ -7,9 +7,7 @@ from transformers import AutoModel  # Pretrained text encoders
 class MediLLMModel(nn.Module):
     def __init__(
         self,
-        text_model_name=(
-            "emilyalsentzer/Bio_ClinicalBERT"
-        ),
+        text_model_name=("emilyalsentzer/Bio_ClinicalBERT"),
         # Bio_ClinicalBERT is a pretrained model on clinical notes,
         # output to 3 classes i.e triage levels
         num_classes=3,
@@ -30,9 +28,7 @@ class MediLLMModel(nn.Module):
             text_model_name
         )  # Automodel returns base model without a classification head,
         # just embeddings
-        self.text_hidden_size = (
-            self.text_encoder.config.hidden_size
-        )
+        self.text_hidden_size = self.text_encoder.config.hidden_size
         # Dimensionality of hidden states i.e embedding vector size returned by
         # the text_encoder for each token, 768 for Bert models
 
@@ -75,16 +71,12 @@ class MediLLMModel(nn.Module):
         self.classifier = nn.Sequential(
             nn.Linear(fusion_dim, hidden_dim),  # Dense layer
             nn.ReLU(),  # Non-linear activation function
-            nn.Dropout(
-                dropout
-            ),  # randomly zeroes 30 percent of neuron outputs
+            nn.Dropout(dropout),  # randomly zeroes 30 percent of neuron outputs
             # to prevent over-fitting
             nn.Linear(hidden_dim, num_classes),  # Final Classification output
         )
 
-    def forward(
-        self, input_ids=None, attention_mask=None, image=None
-    ):
+    def forward(self, input_ids=None, attention_mask=None, image=None):
         # input_ids shape: [batch, seq_length]
         # attention_mask: mask to ignore padding, same shape as input_ids
         # image: [batch, 3, 224, 224]
@@ -122,6 +114,4 @@ class MediLLMModel(nn.Module):
             # -> [batch_size, 2816]
 
         # Return logits for each class, later apply softmax during evaluation
-        return self.classifier(
-            features
-        )
+        return self.classifier(features)

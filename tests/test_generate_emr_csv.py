@@ -71,9 +71,7 @@ def test_total_and_per_class_counts(load_emr_csv):
     assert len(load_emr_csv) == 900, "Total records should be 900"
     counts = Counter(row["triage_level"] for row in load_emr_csv)
     for cls in EXPECTED_CLASSES:
-        assert counts[cls] == EXPECTED_SAMPLES_PER_CLASS, (
-            f"{cls} count mismatch"
-        )
+        assert counts[cls] == EXPECTED_SAMPLES_PER_CLASS, f"{cls} count mismatch"
 
 
 def test_patient_id_format_and_uniqueness(load_emr_csv):
@@ -94,9 +92,7 @@ def test_emr_text_quality(load_emr_csv):
 def test_image_path_format(load_emr_csv):
     for row in load_emr_csv:
         path = row["image_path"]
-        assert path.endswith((".jpg", ".jpeg", ".png")), (
-            f"Invalid image path: {path}"
-        )
+        assert path.endswith((".jpg", ".jpeg", ".png")), f"Invalid image path: {path}"
 
 
 def test_ambiguous_and_noise_injection(load_emr_csv):
