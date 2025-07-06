@@ -6,7 +6,7 @@ from pathlib import Path
 # Paths
 CURRENT_DIR = Path(__file__).resolve().parent
 IMAGES_DIR = CURRENT_DIR.parent / "data" / "images"
-OUTPUT_FILE = CURRENT_DIR.parent / "data" / "emr_records_softlabels.csv"
+OUTPUT_FILE = CURRENT_DIR.parent / "data" / "emr_records.csv"
 
 # Label to triage
 triage_map = {"COVID": "high", "NORMAL": "low", "VIRAL PNEUMONIA": "medium"}
