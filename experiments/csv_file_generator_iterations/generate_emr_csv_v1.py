@@ -8,7 +8,7 @@ IMAGES_DIR = CURRENT_DIR.parent / "data" / "images"
 OUTPUT_FILE = CURRENT_DIR.parent / "data" / "emr_records_extended.csv"
 
 # Sample size
-SAMPLES_PER_CLASS = 300 # 300 * 3 = 900 total
+SAMPLES_PER_CLASS = 300  # 300 * 3 = 900 total
 
 # Categories and labels
 categories = {
@@ -56,6 +56,8 @@ ambiguous_templates = [
 ]
 
 # --- Vitals & Symptoms ---
+
+
 def get_oxygen(label):
     base_ranges = {
         "COVID": (85, 94),
@@ -67,6 +69,7 @@ def get_oxygen(label):
     oxygen = random.randint(base_min - 1, base_max + 1)
     return min(100, max(80, oxygen))
 
+
 def get_temp(label):
     if label == "NORMAL":
         base_min, base_max = 97.0, 98.6
@@ -76,21 +79,23 @@ def get_temp(label):
     # Apply + or - 0.5°F blur and clamp between 95-105°F
     temp = random.uniform(base_min - 0.5, base_max + 0.5)
     return round(min(105.0, max(95.0, temp)), 1)
-    
+
+
 def get_days():
     return random.randint(1, 14)
+
 
 def get_age():
     return random.randint(18, 80)
 
+
 # --- Templates ---
 def build_emr(label, i):
-    name = f"Patient-{label}-{i+1}"
+    name = f"Patient-{label}-{i + 1}"
     age = f"{get_age()}-year-old"
     days = get_days()
     temp = get_temp(label)
     oxygen = get_oxygen(label)
-    
     # Symptoms Pool
     symptoms = {
         "COVID": [
@@ -138,11 +143,11 @@ def build_emr(label, i):
 
     # adding noise to 90% of cases
     if random.random() < 0.9:
-        for _ in range(random.randint(1,2)):
+        for _ in range(random.randint(1, 2)):
             body.insert(random.randint(0, len(body)), random.choice(noise_sentences))
-    
     random.shuffle(body)
     return " ".join(body)
+
 
 # Generate dataset
 records = []
@@ -152,7 +157,7 @@ for label, img_dir in categories.items():
         [f for f in img_dir.glob("*") if f.suffix.lower() in valid_exts]
     )
     for i in range(SAMPLES_PER_CLASS):
-        patient_id = f"{label}-{i+1}"
+        patient_id = f"{label}-{i + 1}"
         image_path = str(random.choice(image_files).relative_to(IMAGES_DIR.parent.parent))
         emr_text = build_emr(label, i)
         triage_level = triage_map[label]

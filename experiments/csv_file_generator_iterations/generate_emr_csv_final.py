@@ -49,11 +49,13 @@ neutral_noise = [
     "No medications currently administered.",
 ]
 
+
 def random_token():
     prefix = "ID"
     letters = ''.join(random.choices(string.ascii_uppercase, k=2))
     digits = ''.join(random.choices(string.digits, k=2))
     return f"{prefix}-{letters}{digits}"
+
 
 def get_oxygen(label):
     # Soft blur across classes
@@ -64,17 +66,21 @@ def get_oxygen(label):
     else:
         return random.randint(87, 94)
 
+
 def get_temp(label):
     if label == "NORMAL":
         return round(random.uniform(97.5, 99.0), 1)
     else:
         return round(random.uniform(98.8, 102.5), 1)
 
+
 def get_age():
     return random.randint(18, 85)
 
+
 def get_days():
     return random.randint(1, 10)
+
 
 def build_emr(label, i):
     pid = random_token()
@@ -112,6 +118,7 @@ def build_emr(label, i):
     random.shuffle(body[1:])  # Keep intro in position 0
     return " ".join(body)
 
+
 # Generate records
 records = []
 for label, img_dir in categories.items():
@@ -120,7 +127,7 @@ for label, img_dir in categories.items():
         image_path = str(random.choice(image_files).relative_to(IMAGES_DIR.parent.parent))
         text = build_emr(label, i)
         triage = triage_map[label]
-        records.append([f"{label}-{i+1}", image_path, text, triage])
+        records.append([f"{label}-{i + 1}", image_path, text, triage])
 
 # Shuffle + write
 random.shuffle(records)
