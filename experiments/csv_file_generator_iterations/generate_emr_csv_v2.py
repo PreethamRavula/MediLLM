@@ -16,7 +16,7 @@ SAMPLES_PER_CLASS = 300
 categories = {
     "COVID": IMAGES_DIR / "COVID",
     "NORMAL": IMAGES_DIR / "NORMAL",
-    "VIRAL PNEUMONIA": IMAGES_DIR / "VIRAL PNEUMONIA"
+    "VIRAL PNEUMONIA": IMAGES_DIR / "VIRAL PNEUMONIA",
 }
 
 # Shared ambiguous templates
@@ -43,8 +43,8 @@ neutral_noise = [
 # ---Patient random token genrator ---
 def random_token():
     prefix = "ID"
-    letters = ''.join(random.choices(string.ascii_uppercase, k=2))
-    digits = ''.join(random.choices(string.digits, k=2))
+    letters = "".join(random.choices(string.ascii_uppercase, k=2))
+    digits = "".join(random.choices(string.digits, k=2))
     return f"{prefix}-{letters}{digits}"
 
 
@@ -79,27 +79,41 @@ def build_emr(label, i):
     temp = get_temp(label)
     days = get_days()
 
-    general_intro = f"Patient {patient_id}, a {age}, presents with symptoms for {days} days."
+    general_intro = (
+        f"Patient {patient_id}, a {age}, presents with symptoms for {days} days."
+    )
     vitals = f"Temperature recorded at {temp}°F, SPO2 levels at {oxygen}%."
 
     # Label-specific (but fuzzy) symptoms
     symptoms = {
-        "COVID": ["Complains of fatigue and shortness of breath.", "Dry cough with mild fever noted."],
-        "NORMAL": ["No major complaints; here for general checkup.", "Reports good health, no active issues."],
-        "VIRAL PNEUMONIA": ["Persistent cough and mild fever observed.", "Slight wheezing with chest tightness."]
+        "COVID": [
+            "Complains of fatigue and shortness of breath.",
+            "Dry cough with mild fever noted.",
+        ],
+        "NORMAL": [
+            "No major complaints; here for general checkup.",
+            "Reports good health, no active issues.",
+        ],
+        "VIRAL PNEUMONIA": [
+            "Persistent cough and mild fever observed.",
+            "Slight wheezing with chest tightness.",
+        ],
     }
 
     diagnosis = {
         "COVID": ["Viral etiology suspected.", "COVID infection not ruled out."],
         "NORMAL": ["Unlikely presence of infection.", "Clinical impression is benign."],
-        "VIRAL PNEUMONIA": ["Signs may indicate atypical pneumonia.", "Possible viral infection of lower tract."]
+        "VIRAL PNEUMONIA": [
+            "Signs may indicate atypical pneumonia.",
+            "Possible viral infection of lower tract.",
+        ],
     }
 
     body = [
         general_intro,
         random.choice(symptoms[label]),
         vitals,
-        random.choice(diagnosis[label])
+        random.choice(diagnosis[label]),
     ]
 
     # Inject 1–2 ambiguous or neutral sentences
@@ -115,9 +129,13 @@ def build_emr(label, i):
 # Generate records
 records = []
 for label, img_dir in categories.items():
-    image_files = sorted([f for f in img_dir.glob("*") if f.suffix.lower() in [".png", ".jpg", ".jpeg"]])
+    image_files = sorted(
+        [f for f in img_dir.glob("*") if f.suffix.lower() in [".png", ".jpg", ".jpeg"]]
+    )
     for i in range(SAMPLES_PER_CLASS):
-        image_path = str(random.choice(image_files).relative_to(IMAGES_DIR.parent.parent))
+        image_path = str(
+            random.choice(image_files).relative_to(IMAGES_DIR.parent.parent)
+        )
         text = build_emr(label, i)
         triage = triage_map[label]
         records.append([f"{label}-{i + 1}", image_path, text, triage])

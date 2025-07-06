@@ -14,15 +14,11 @@ SAMPLES_PER_CLASS = 300  # 300 * 3 = 900 total
 categories = {
     "COVID": IMAGES_DIR / "COVID",
     "NORMAL": IMAGES_DIR / "NORMAL",
-    "VIRAL PNEUMONIA": IMAGES_DIR / "VIRAL PNEUMONIA"
+    "VIRAL PNEUMONIA": IMAGES_DIR / "VIRAL PNEUMONIA",
 }
 
 # Triage mapping
-triage_map = {
-    "COVID": "high",
-    "NORMAL": "low",
-    "VIRAL PNEUMONIA": "medium"
-}
+triage_map = {"COVID": "high", "NORMAL": "low", "VIRAL PNEUMONIA": "medium"}
 
 # --- Noise Sentences ---
 noise_sentences = [
@@ -43,7 +39,7 @@ noise_sentences = [
     "Patient remains alert and cooperative.",
     "No medication administered at this stage.",
     "Doctor recommends home resr and observation.",
-    "Evaluation ongoing for possible infection."
+    "Evaluation ongoing for possible infection.",
 ]
 
 # --- ambiguity sentences ---
@@ -52,18 +48,14 @@ ambiguous_templates = [
     "Normal oxygen levels observed. Slight wheeze on auscultation.",
     "Patient reports chest discomfort but vitals are stable.",
     "No known exposure. Minor throat irritation present.",
-    "Slight fatigue without other systemic symptoms."
+    "Slight fatigue without other systemic symptoms.",
 ]
 
 # --- Vitals & Symptoms ---
 
 
 def get_oxygen(label):
-    base_ranges = {
-        "COVID": (85, 94),
-        "VIRAL PNEUMONIA": (88, 95),
-        "NORMAL": (96, 99)
-    }
+    base_ranges = {"COVID": (85, 94), "VIRAL PNEUMONIA": (88, 95), "NORMAL": (96, 99)}
     base_min, base_max = base_ranges[label]
     # Apply + or - 1 blur, clamping between 80 and 100
     oxygen = random.randint(base_min - 1, base_max + 1)
@@ -112,7 +104,7 @@ def build_emr(label, i):
             f"{name} ({age}) complains of dry cough for {days} days.",
             f"{name} experiencing low-grade fever and SPO2 at {oxygen}%.",
             f"{name} reports breathlessness. X-ray indicates mild infiltrates.",
-        ]
+        ],
     }
 
     # Diagnosis Observations
@@ -120,18 +112,18 @@ def build_emr(label, i):
         "COVID": [
             "Findings suggest viral respiratory infection.",
             "Signs consistent with COVID-19 infection.",
-            "Clinical features align with COVID diagnosis."
+            "Clinical features align with COVID diagnosis.",
         ],
         "NORMAL": [
             "No signs of respiratory infection.",
             "No abnormal findings detected.",
-            "Checkup results within normal limits."
+            "Checkup results within normal limits.",
         ],
         "VIRAL PNEUMONIA": [
             "X-ray shows patchy infiltrates.",
             "Suspected viral origin of symptoms.",
-            "Clinical signs indicate viral pneumonia."
-        ]
+            "Clinical signs indicate viral pneumonia.",
+        ],
     }
 
     # Construct sentence pool
@@ -158,7 +150,9 @@ for label, img_dir in categories.items():
     )
     for i in range(SAMPLES_PER_CLASS):
         patient_id = f"{label}-{i + 1}"
-        image_path = str(random.choice(image_files).relative_to(IMAGES_DIR.parent.parent))
+        image_path = str(
+            random.choice(image_files).relative_to(IMAGES_DIR.parent.parent)
+        )
         emr_text = build_emr(label, i)
         triage_level = triage_map[label]
         records.append([patient_id, image_path, emr_text, triage_level])

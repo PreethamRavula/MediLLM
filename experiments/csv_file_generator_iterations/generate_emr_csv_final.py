@@ -16,7 +16,7 @@ SAMPLES_PER_CLASS = 300
 categories = {
     "COVID": IMAGES_DIR / "COVID",
     "NORMAL": IMAGES_DIR / "NORMAL",
-    "VIRAL PNEUMONIA": IMAGES_DIR / "VIRAL PNEUMONIA"
+    "VIRAL PNEUMONIA": IMAGES_DIR / "VIRAL PNEUMONIA",
 }
 
 # Shared ambiguous templates
@@ -36,7 +36,7 @@ shared_diagnosis = [
     "Further tests required to confirm diagnosis.",
     "Findings are borderline; clinical judgment advised.",
     "Observation warranted due to overlapping signs.",
-    "Initial assessment inconclusive."
+    "Initial assessment inconclusive.",
 ]
 
 # Noise sentences
@@ -52,8 +52,8 @@ neutral_noise = [
 
 def random_token():
     prefix = "ID"
-    letters = ''.join(random.choices(string.ascii_uppercase, k=2))
-    digits = ''.join(random.choices(string.digits, k=2))
+    letters = "".join(random.choices(string.ascii_uppercase, k=2))
+    digits = "".join(random.choices(string.digits, k=2))
     return f"{prefix}-{letters}{digits}"
 
 
@@ -97,7 +97,7 @@ def build_emr(label, i):
         intro,
         random.choice(shared_symptoms),
         vitals,
-        random.choice(shared_diagnosis)
+        random.choice(shared_diagnosis),
     ]
 
     # Optionally inject a mild class-specific clue (with low probability)
@@ -122,9 +122,13 @@ def build_emr(label, i):
 # Generate records
 records = []
 for label, img_dir in categories.items():
-    image_files = sorted([f for f in img_dir.glob("*") if f.suffix.lower() in [".png", ".jpg", ".jpeg"]])
+    image_files = sorted(
+        [f for f in img_dir.glob("*") if f.suffix.lower() in [".png", ".jpg", ".jpeg"]]
+    )
     for i in range(SAMPLES_PER_CLASS):
-        image_path = str(random.choice(image_files).relative_to(IMAGES_DIR.parent.parent))
+        image_path = str(
+            random.choice(image_files).relative_to(IMAGES_DIR.parent.parent)
+        )
         text = build_emr(label, i)
         triage = triage_map[label]
         records.append([f"{label}-{i + 1}", image_path, text, triage])
