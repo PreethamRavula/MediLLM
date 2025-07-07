@@ -2,6 +2,7 @@ import os
 import csv
 import sys
 import pytest
+from pathlib import Path
 from collections import Counter
 
 # Add repo root to the sys.path
@@ -12,7 +13,7 @@ if BASE_DIR not in sys.path:
 from src.generate_emr_csv import generate_dataset
 
 
-CSV_PATH = os.path.join(BASE_DIR, "data", "emr_records.csv")
+CSV_PATH = Path(BASE_DIR) / "data" / "emr_records.csv"
 EXPECTED_CLASSES = {"low", "medium", "high"}
 EXPECTED_COLUMNS = ["patient_id", "image_path", "emr_text", "triage_level"]
 EXPECTED_SAMPLES_PER_CLASS = 300
