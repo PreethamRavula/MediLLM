@@ -131,7 +131,8 @@ def generate_dataset():
             ]
         )
         if not image_files:
-            raise FileNotFoundError(f"No images found in {img_dir}. Cannot proceed.")
+            raise FileNotFoundError(
+                f"No images found in {img_dir}. Folder contents: {list(img_dir.iterdir())}")
 
         for i in range(SAMPLES_PER_CLASS):
             image_path = str(

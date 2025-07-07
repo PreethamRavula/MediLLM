@@ -2,6 +2,7 @@ import os
 import sys
 import pytest
 import torch
+import pandas as pd
 
 base_dir = os.path.dirname(os.path.dirname(__file__))
 if base_dir not in sys.path:
@@ -37,3 +38,22 @@ def test_dataset_loading(mode):
 
     assert "label" in sample, "Missing label"
     assert sample["label"].item() in [0, 1, 2], "Invalid label value"
+
+
+def test_missing_image_raises_error(tmp_path):
+    # Create a temporary CSV file with an invalid image path
+    fake_csv = tmp_path / "fake_emr_records.csv"
+    fake_df = pd.DataFrame([{
+        "patient_id": "ID-XX99",
+        "image_path": "data/images/NORMAL/non_existent_image.jpg",
+        "emr_text": "Patient ID-XX99 reports symptoms. Temperature recorded at 98.6°F and SPO2 at 97%.",
+        "triage_level": "low"
+    }])
+    fake_df.to_csv(fake_csv, index=False)
+
+    # Instantiate the dataset in image mode
+    dataset = TriageDataset(csv_file=fake_csv, mode="image")
+
+    # Expect a FileNotFoundError when trying to access the missing image
+    with pytest.raises(FileNotFoundError, match="Image file not found"):
+        _ = dataset[0]
