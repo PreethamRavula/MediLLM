@@ -130,6 +130,9 @@ def generate_dataset():
                 if f.suffix.lower() in [".png", ".jpg", ".jpeg"]
             ]
         )
+        if not image_files:
+            raise FileNotFoundError(f"No images found in {img_dir}. Cannot proceed.")
+
         for i in range(SAMPLES_PER_CLASS):
             image_path = str(
                 random.choice(image_files).relative_to(IMAGES_DIR.parent.parent)

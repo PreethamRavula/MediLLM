@@ -9,10 +9,10 @@ BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 if BASE_DIR not in sys.path:
     sys.path.append(BASE_DIR)
 
-from src.generate_emr_csv import generate_dataset, OUTPUT_FILE
+from src.generate_emr_csv import generate_dataset
 
 
-CSV_PATH = OUTPUT_FILE
+CSV_PATH = os.path.join(BASE_DIR, "data", "emr_records.csv")
 EXPECTED_CLASSES = {"low", "medium", "high"}
 EXPECTED_COLUMNS = ["patient_id", "image_path", "emr_text", "triage_level"]
 EXPECTED_SAMPLES_PER_CLASS = 300
@@ -48,7 +48,7 @@ NOISE_SENTENCES = [
 def test_dataset_generation_runs():
     generate_dataset()
     assert CSV_PATH.exists(), "CSV file should be generated"
-    with open(OUTPUT_FILE, "r") as f:
+    with open(CSV_PATH, "r") as f:
         lines = f.readlines()
     assert len(lines) > 1  # Header + Content
 
