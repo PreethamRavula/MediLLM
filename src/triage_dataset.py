@@ -80,6 +80,9 @@ class TriageDataset(Dataset):
             # Process image
             base_dir = os.path.dirname(os.path.dirname(__file__))
             image_path = os.path.join(base_dir, row["image_path"])
+
+            if not os.path.exists(image_path):
+                raise FileNotFoundError(f"Image file not found: {image_path}")
             image = Image.open(image_path).convert("RGB")
             output["image"] = self.transform(image)
 
