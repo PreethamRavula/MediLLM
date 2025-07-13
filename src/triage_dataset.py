@@ -1,11 +1,15 @@
 import os
 import torch
+from pathlib import Path
 from torch.utils.data import Dataset
 from PIL import Image
 from torchvision import transforms
 from torchvision.transforms import InterpolationMode
 import pandas as pd
 from transformers import AutoTokenizer
+
+# Check if running in CI environment
+IS_CI = os.getenv("CI", "false").lower() == "true"
 
 
 class TriageDataset(Dataset):
@@ -16,6 +20,7 @@ class TriageDataset(Dataset):
         max_length=128,
         transform=None,
         mode="multimodal",
+        image_base_dir=None,
     ):
         assert mode in [
             "text",
@@ -27,6 +32,10 @@ class TriageDataset(Dataset):
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
         self.max_length = max_length
         self.mode = mode.lower()
+        if self.mode in ["image", "multimodal"]:
+            if image_base_dir is None:
+                raise ValueError("image directory must be provided for image or multimodal mode.")
+            self.image_base_dir = Path(image_base_dir).resolve()
 
         self.transform = (
             transform
@@ -78,11 +87,15 @@ class TriageDataset(Dataset):
 
         if self.mode in ["image", "multimodal"]:
             # Process image
-            base_dir = os.path.dirname(os.path.dirname(__file__))
-            image_path = os.path.join(base_dir, row["image_path"])
+            image_path = Path(row["image_path"])
+            if not image_path.is_absolute():
+                image_path = self.image_base_dir / image_path
 
-            if not os.path.exists(image_path):
-                raise FileNotFoundError(f"Image file not found: {image_path}")
+            if not image_path.exists():
+                if IS_CI:
+                    raise FileNotFoundError(f"[CI] Image file not found: {image_path}")
+                else:
+                    raise FileNotFoundError(f"[LOCAL] Image file not found: {image_path}")
             image = Image.open(image_path).convert("RGB")
             output["image"] = self.transform(image)
 

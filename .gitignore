@@ -24,4 +24,13 @@ logs/
 .env 
 
 # logs
-*.log 
+*.log
+
+# --- EXCEPTIONS (ALLOW) --- 
+!data/dummy_images/
+!data/dummy_images/*.jpg
+!data/dummy_images/*.jpeg
+!data/dummy_images/*.png
+
+# Allow test CSV for CI
+!data/test_emr_records.csv 

@@ -1,23 +1,22 @@
+import os
 import random
 import csv
 import string
 from pathlib import Path
 
+# Detect CI environment
+IS_CI = os.getenv("CI", "false").lower() == "true"
+
+# Set number of samples accordingly
+SAMPLES_PER_CLASS = 3 if IS_CI else 300  # Reduced for CI to speed up tests
+
 # Paths
 CURRENT_DIR = Path(__file__).resolve().parent
-IMAGES_DIR = CURRENT_DIR.parent / "data" / "images"
+IMAGES_DIR = CURRENT_DIR.parent / "data" / "images"  # Absolute path of images folder
 OUTPUT_FILE = CURRENT_DIR.parent / "data" / "emr_records.csv"
 
 # Label to triage
 triage_map = {"COVID": "high", "NORMAL": "low", "VIRAL PNEUMONIA": "medium"}
-SAMPLES_PER_CLASS = 300
-
-# Folders
-categories = {
-    "COVID": IMAGES_DIR / "COVID",
-    "NORMAL": IMAGES_DIR / "NORMAL",
-    "VIRAL PNEUMONIA": IMAGES_DIR / "VIRAL PNEUMONIA",
-}
 
 # Shared ambiguous templates
 shared_symptoms = [
@@ -120,7 +119,17 @@ def build_emr(label, i):
 
 
 # Generate records
-def generate_dataset():
+def generate_dataset(image_dir_override=None, output_path_override=None):
+    root_image_dir = image_dir_override or IMAGES_DIR
+    output_file = output_path_override or OUTPUT_FILE
+
+    # Folders
+    categories = {
+        "COVID": root_image_dir / "COVID",  # Absolute path of Image labels
+        "NORMAL": root_image_dir / "NORMAL",
+        "VIRAL PNEUMONIA": root_image_dir / "VIRAL PNEUMONIA",
+    }
+
     records = []
     for label, img_dir in categories.items():
         image_files = sorted(
@@ -136,7 +145,7 @@ def generate_dataset():
 
         for i in range(SAMPLES_PER_CLASS):
             image_path = str(
-                random.choice(image_files).relative_to(IMAGES_DIR.parent.parent)
+                random.choice(image_files).relative_to(root_image_dir.parent.parent)  # path of image respective to the project root
             )
             text = build_emr(label, i)
             triage = triage_map[label]
@@ -144,13 +153,13 @@ def generate_dataset():
 
     # Shuffle + write
     random.shuffle(records)
-    with open(OUTPUT_FILE, "w", newline="") as f:
+    with open(output_file, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["patient_id", "image_path", "emr_text", "triage_level"])
         writer.writerows(records)
 
-    print(f"✅ Softlabel EMR dataset generated at {OUTPUT_FILE}")
+    print(f"✅ EMR dataset generated at {output_file}")
 
 
 if __name__ == "__main__":
-    generate_dataset()
+    generate_dataset(image_dir_override=IMAGES_DIR, output_path_override=OUTPUT_FILE)
