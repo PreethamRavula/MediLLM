@@ -1,22 +1,30 @@
 import os
+import re
 import csv
 import sys
 import pytest
 from pathlib import Path
-from collections import Counter
 
-# Add repo root to the sys.path
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-if BASE_DIR not in sys.path:
-    sys.path.append(BASE_DIR)
+# Add src/ to path so we can import from it
+BASE_DIR = Path(__file__).resolve().parent.parent
+SRC_DIR = BASE_DIR / "src"
+sys.path.insert(0, str(SRC_DIR))
 
-from src.generate_emr_csv import generate_dataset
+from generate_emr_csv import generate_dataset, OUTPUT_FILE
 
+# Determine if running in CI
+IS_CI = os.getenv("CI", "false").lower() == "true"
 
-CSV_PATH = Path(BASE_DIR) / "data" / "emr_records.csv"
-EXPECTED_CLASSES = {"low", "medium", "high"}
+# Paths
+DATA_DIR = BASE_DIR / "data"
+DUMMY_IMAGES_DIR = DATA_DIR / "dummy_images"
+REAL_IMAGES_DIR = DATA_DIR / "images"
+CSV_PATH = DATA_DIR / ("test_emr_records.csv" if IS_CI else OUTPUT_FILE)
+
+# Constants
 EXPECTED_COLUMNS = ["patient_id", "image_path", "emr_text", "triage_level"]
-EXPECTED_SAMPLES_PER_CLASS = 300
+EXPECTED_CLASSES = ["low", "medium", "high"]
+EXPECTED_SAMPLES_PER_CLASS = 3 if IS_CI else 300
 
 AMBIGUOUS_PHRASES = [
     "Symptoms could relate to a range of viral infections.",
@@ -46,54 +54,67 @@ NOISE_SENTENCES = [
 ]
 
 
-def test_dataset_generation_runs():
-    generate_dataset()
-    assert CSV_PATH.exists(), "CSV file should be generated"
-    with open(CSV_PATH, "r") as f:
-        lines = f.readlines()
-    assert len(lines) > 1  # Header + Content
+@pytest.fixture(scope="module", autouse=True)
+def generate_csv_for_test():
+    image_dir = DUMMY_IMAGES_DIR if IS_CI else REAL_IMAGES_DIR
+    generate_dataset(image_dir_override=image_dir, output_path_override=CSV_PATH)
 
 
-@pytest.fixture(scope="module")
-def load_emr_csv():
+def test_csv_exists():
     assert CSV_PATH.exists(), f"CSV file not found at: {CSV_PATH}"
+
+
+def test_csv_structure():
+    with open(CSV_PATH, newline="") as f:
+        reader = csv.reader(f)
+        header = next(reader)
+    assert set(header) == set(EXPECTED_COLUMNS), "CSV columns mismatch"
+
+
+def test_total_and_per_class_counts():
     with open(CSV_PATH, newline="") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
-    return rows
 
+    expected_total = EXPECTED_SAMPLES_PER_CLASS * len(EXPECTED_CLASSES)
+    assert len(rows) == expected_total
 
-def test_csv_structure(load_emr_csv):
-    row = load_emr_csv[0]
-    assert set(row.keys()) == set(EXPECTED_COLUMNS), "CSV columns mismatch"
+    counts = {"low": 0, "medium": 0, "high": 0}
+    for row in rows:
+        counts[row["triage_level"]] += 1
 
-
-def test_total_and_per_class_counts(load_emr_csv):
-    assert len(load_emr_csv) == 900, "Total records should be 900"
-    counts = Counter(row["triage_level"] for row in load_emr_csv)
-    for cls in EXPECTED_CLASSES:
-        assert counts[cls] == EXPECTED_SAMPLES_PER_CLASS, f"{cls} count mismatch"
+    assert all(c == EXPECTED_SAMPLES_PER_CLASS for c in counts.values)
 
 
 def test_patient_id_format_and_uniqueness(load_emr_csv):
-    ids = [row["patient_id"] for row in load_emr_csv]
-    assert all(id and "-" in id for id in ids), "Malformed patient IDs found"
-    assert len(set(ids)) == 900, "Duplicate patient IDs found"
+    with open(CSV_PATH, newline="") as f:
+        reader = csv.DictReader(f)
+        ids = [row["patient_id"] for row in reader]
+        assert len(ids) == len(set(ids)), "Duplicate patient IDs found"
+        pattern = re.compile(r"^ID-[A-Z]{2}\d{2}$")
+        for pid in ids:
+            assert pattern.match(pid), f"Invalid patient ID format: {pid}"
 
 
-def test_emr_text_quality(load_emr_csv):
-    for row in load_emr_csv:
-        text = row["emr_text"]
-        assert (
-            isinstance(text, str) and len(text.split()) > 10
-        ), "EMR text too short or malformed"
-        assert "Temperature" in text and "SPO2" in text, "Vitals info missing"
+def test_emr_text_quality():
+    with open(CSV_PATH, newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            text = row["emr_text"]
+            assert (
+                isinstance(text, str) and len(text.split()) > 10
+            ), "EMR text too short or malformed"
+            assert "Temperature" in text and "SPO2" in text, "Vitals info missing"
 
 
-def test_image_path_format(load_emr_csv):
-    for row in load_emr_csv:
-        path = row["image_path"]
-        assert path.endswith((".jpg", ".jpeg", ".png")), f"Invalid image path: {path}"
+def test_image_path_format():
+    expected_path = DUMMY_IMAGES_DIR.relative_to(BASE_DIR) if IS_CI else REAL_IMAGES_DIR.relative_to(BASE_DIR)
+    with open(CSV_PATH, newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            path = row["image_path"]
+            assert path.startswith(expected_path), f"Image path should start with '{expected_path}', got: {path}"
+            assert path.endswith((".jpg", ".jpeg", ".png")), f"Invalid image path: {path}"
 
 
 def test_ambiguous_and_noise_injection(load_emr_csv):
@@ -101,28 +122,34 @@ def test_ambiguous_and_noise_injection(load_emr_csv):
     symptom_hits = 0
     noise_hits = 0
 
-    for row in load_emr_csv:
-        text = row["emr_text"]
-        if any(phrase in text for phrase in AMBIGUOUS_PHRASES):
-            ambiguous_hits += 1
-        if any(symptom in text for symptom in SHARED_SYMPTOMS):
-            symptom_hits += 1
-        if any(noise in text for noise in NOISE_SENTENCES):
-            noise_hits += 1
+    with open(CSV_PATH, newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            text = row["emr_text"]
+            if any(phrase in text for phrase in AMBIGUOUS_PHRASES):
+                ambiguous_hits += 1
+            if any(symptom in text for symptom in SHARED_SYMPTOMS):
+                symptom_hits += 1
+            if any(noise in text for noise in NOISE_SENTENCES):
+                noise_hits += 1
 
     assert ambiguous_hits > 800, "Ambiguous phrases missing in too many EMRs"
     assert symptom_hits > 800, "Shared symptom clues underrepresented"
     assert noise_hits > 700, "Too few EMRs contain noise sentences"
 
 
-def test_label_validity(load_emr_csv):
-    for row in load_emr_csv:
-        assert (
-            row["triage_level"] in EXPECTED_CLASSES
-        ), f"Invalid label: {row['triage_level']}"
+def test_label_validity():
+    with open(CSV_PATH, newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            assert (
+                row["triage_level"] in EXPECTED_CLASSES
+            ), f"Invalid label: {row['triage_level']}"
 
 
-def test_no_empty_fields(load_emr_csv):
-    for row in load_emr_csv:
-        for col in EXPECTED_COLUMNS:
-            assert row[col].strip(), f"Empty field found in colum '{col}'"
+def test_no_empty_fields():
+    with open(CSV_PATH, newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            for key, val in row.items():
+                assert val.strip() != "", f"Empty field found for {key}"

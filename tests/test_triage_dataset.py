@@ -3,23 +3,36 @@ import sys
 import pytest
 import torch
 import pandas as pd
+from pathlib import Path
 
-base_dir = os.path.dirname(os.path.dirname(__file__))
-if base_dir not in sys.path:
-    sys.path.append(base_dir)
+# Setup path to src/
+BASE_DIR = Path(__file__).resolve().parent.parent
+SRC_DIR = BASE_DIR / "src"
+sys.path.insert(0, str(SRC_DIR))
 
-from src.triage_dataset import TriageDataset
+from triage_dataset import TriageDataset
 
-# Path to CSV and example image should match the local structure
-CSV_PATH = os.path.join(base_dir, "data", "emr_records.csv")
+# Detect CI environment
+IS_CI = os.getenv("CI", "false").lower() == "true"
+
+# Paths
+DATA_DIR = BASE_DIR / "data"
+CSV_PATH = DATA_DIR / ("test_emr_records.csv" if IS_CI else "emr_records.csv")
+IMAGE_DIR = DATA_DIR / ("dummy_images" if IS_CI else "images")
+EXPECTED_SAMPLES_PER_CLASS = 3 if IS_CI else 300
+EXPECTED_TOTAL = 3 * 3 if IS_CI else 300 * 3  # 3 classes
 
 
 @pytest.mark.parametrize("mode", ["text", "image", "multimodal"])
 def test_dataset_loading(mode):
-    dataset = TriageDataset(csv_file=CSV_PATH, mode=mode)
+    kwargs = {"csv_file": CSV_PATH, "mode": mode}
+    if mode in ["image", "multimodal"]:
+        kwargs["image_base_dir"] = IMAGE_DIR
+
+    dataset = TriageDataset(**kwargs)
 
     # Check dataset length
-    assert len(dataset) == 900, "Expected 900 records in the dataset"
+    assert len(dataset) == EXPECTED_TOTAL, f"Expected {EXPECTED_TOTAL} records in the dataset"
 
     # Check one sample
     sample = dataset[0]
