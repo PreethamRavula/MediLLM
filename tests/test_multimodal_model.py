@@ -49,7 +49,7 @@ def test_text_only(mock_create_model, mock_auto_model, dummy_inputs):
     assert torch.allclose(probs.sum(dim=1), torch.ones(BATCH_SIZE), atol=1e-5)
 
 
-@patch("src.multimodal_model.Automodel.from_pretrained")
+@patch("src.multimodal_model.AutoModel.from_pretrained")
 @patch("src.multimodal_model.timm.create_model")
 def test_image_only(mock_create_model, mock_auto_model, dummy_inputs):
     # Mock image encoder
@@ -88,7 +88,7 @@ def test_multimodal(mock_create_model, mock_auto_model, dummy_inputs):
     model.eval()
     outputs = model(
         input_ids=dummy_inputs["input_ids"],
-        atttention_mask=dummy_inputs["attention_mask"],
+        attention_mask=dummy_inputs["attention_mask"],
         image=dummy_inputs["image"],
     )
 
