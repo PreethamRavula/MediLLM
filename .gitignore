@@ -8,6 +8,7 @@ __pycache__/
 # Weights & Biases
 wandb/
 wandb/*
+wandb_logs/
 
 # Optuna study databases
 *.db 
@@ -16,6 +17,8 @@ wandb/*
 checkpoints/
 logs/
 *.pt
+.ipynb_checkpoints
+*.ckpt
 
 # Model files
 *.pth
@@ -25,12 +28,16 @@ logs/
 
 # logs
 *.log
+*.tmp
 
 # --- EXCEPTIONS (ALLOW) --- 
 !data/dummy_images/
-!data/dummy_images/*.jpg
-!data/dummy_images/*.jpeg
-!data/dummy_images/*.png
+!data/dummy_images/COVID/*.png
+!data/dummy_images/NORMAL/*.png
+!data/dummy_images/VIRAL PNEUMONIA/*.png
 
 # Allow test CSV for CI
 !data/test_emr_records.csv 
+
+# Mac system files
+.DS_Store
