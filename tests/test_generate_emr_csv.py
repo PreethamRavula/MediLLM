@@ -10,7 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SRC_DIR = BASE_DIR / "src"
 sys.path.insert(0, str(SRC_DIR))
 
-from generate_emr_csv import generate_dataset, OUTPUT_FILE
+from generate_emr_csv import generate_dataset
 
 # Determine if running in CI
 IS_CI = os.getenv("CI", "false").lower() == "true"
@@ -19,7 +19,7 @@ IS_CI = os.getenv("CI", "false").lower() == "true"
 DATA_DIR = BASE_DIR / "data"
 DUMMY_IMAGES_DIR = DATA_DIR / "dummy_images"
 REAL_IMAGES_DIR = DATA_DIR / "images"
-CSV_PATH = DATA_DIR / ("test_emr_records.csv" if IS_CI else OUTPUT_FILE)
+CSV_PATH = DATA_DIR / ("test_emr_records.csv" if IS_CI else "emr_records.csv")
 
 # Constants
 EXPECTED_COLUMNS = ["patient_id", "image_path", "emr_text", "triage_level"]
@@ -57,7 +57,10 @@ NOISE_SENTENCES = [
 @pytest.fixture(scope="module", autouse=True)
 def generate_csv_for_test():
     image_dir = DUMMY_IMAGES_DIR if IS_CI else REAL_IMAGES_DIR
-    generate_dataset(image_dir_override=image_dir, output_path_override=CSV_PATH)
+
+    # Generate only if missing
+    if not CSV_PATH.exists():
+        generate_dataset(image_dir_override=image_dir, output_path_override=CSV_PATH)
 
 
 def test_csv_exists():
