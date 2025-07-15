@@ -10,6 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SRC_DIR = BASE_DIR / "src"
 sys.path.insert(0, str(SRC_DIR))
 
+import generate_emr_csv
 from generate_emr_csv import generate_dataset
 
 # Determine if running in CI
@@ -86,15 +87,18 @@ def test_total_and_per_class_counts():
     for row in rows:
         counts[row["triage_level"]] += 1
 
-    assert all(c == EXPECTED_SAMPLES_PER_CLASS for c in counts.values)
+    assert all(c == EXPECTED_SAMPLES_PER_CLASS for c in counts.values())
 
 
-def test_patient_id_format_and_uniqueness(load_emr_csv):
+def test_patient_id_format_and_uniqueness():
     with open(CSV_PATH, newline="") as f:
         reader = csv.DictReader(f)
         ids = [row["patient_id"] for row in reader]
+
+        # Check uniqueness
         assert len(ids) == len(set(ids)), "Duplicate patient IDs found"
-        pattern = re.compile(r"^ID-[A-Z]{2}\d{2}$")
+        # Match  format like "COVID-101", "NORMAL-1", etc.
+        pattern = re.compile(r"^(COVID|NORMAL|VIRAL PNEUMONIA)-\d+$")
         for pid in ids:
             assert pattern.match(pid), f"Invalid patient ID format: {pid}"
 
@@ -116,11 +120,11 @@ def test_image_path_format():
         reader = csv.DictReader(f)
         for row in reader:
             path = row["image_path"]
-            assert path.startswith(expected_path), f"Image path should start with '{expected_path}', got: {path}"
+            assert path.startswith(str(expected_path)), f"Image path should start with '{expected_path}', got: {path}"
             assert path.endswith((".jpg", ".jpeg", ".png")), f"Invalid image path: {path}"
 
 
-def test_ambiguous_and_noise_injection(load_emr_csv):
+def test_ambiguous_and_noise_injection():
     ambiguous_hits = 0
     symptom_hits = 0
     noise_hits = 0
@@ -156,3 +160,39 @@ def test_no_empty_fields():
         for row in reader:
             for key, val in row.items():
                 assert val.strip() != "", f"Empty field found for {key}"
+
+
+def test_random_token_format():
+    token = generate_emr_csv.random_token()
+    assert token.startswith("ID-")
+    assert len(token) == 7  # ID-XX99
+
+
+def test_oxygen_range_per_class():
+    for label, rng in {
+        "NORMAL": range(94, 101),
+        "VIRAL PNEUMONIA": range(90, 97),
+        "COVID": range(87, 95),
+    }.items():
+        for _ in range(10):
+            val = generate_emr_csv.get_oxygen(label)
+            assert val in rng
+
+
+def test_temp_range():
+    for label in ["NORMAL", "COVID", "VIRAL PNEUMONIA"]:
+        for _ in range(10):
+            temp = generate_emr_csv.get_temp(label)
+            assert 95 <= temp <= 103  # Broad sanity range
+
+
+def test_days_range():
+    for _ in range(10):
+        assert 1 <= generate_emr_csv.get_days() <= 10
+
+
+def test_build_emr_structure():
+    emr = generate_emr_csv.build_emr("COVID", 1)
+    assert isinstance(emr, str)
+    assert "Temperature" in emr and "SPO2" in emr
+    assert emr.count(" ") > 10  # basic check for sentence structure

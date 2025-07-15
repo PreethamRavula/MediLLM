@@ -65,7 +65,7 @@ def test_missing_image_raises_error(tmp_path):
     fake_df.to_csv(fake_csv, index=False)
 
     # Instantiate the dataset in image mode
-    dataset = TriageDataset(csv_file=fake_csv, mode="image")
+    dataset = TriageDataset(csv_file=fake_csv, mode="image", image_base_dir=IMAGE_DIR)
 
     # Expect a FileNotFoundError when trying to access the missing image
     with pytest.raises(FileNotFoundError, match="Image file not found"):
