@@ -115,7 +115,7 @@ def test_emr_text_quality():
 
 
 def test_image_path_format():
-    expected_path = DUMMY_IMAGES_DIR.relative_to(DUMMY_IMAGES_DIR.parent) if IS_CI else REAL_IMAGES_DIR.relative_to(REAL_IMAGES_DIR.parent)
+    expected_path = (DATA_DIR / ("dummy_images" if IS_CI else "images")).relative_to(BASE_DIR)
     with open(CSV_PATH, newline="") as f:
         reader = csv.DictReader(f)
         for row in reader:
