@@ -18,7 +18,7 @@ IS_CI = os.getenv("CI", "false").lower() == "true"
 # Paths
 DATA_DIR = BASE_DIR / "data"
 CSV_PATH = DATA_DIR / ("test_emr_records.csv" if IS_CI else "emr_records.csv")
-IMAGE_DIR = DATA_DIR / ("dummy_images" if IS_CI else "images")
+IMAGE_DIR = (DATA_DIR / "dummy_images").resolve() if IS_CI else (DATA_DIR / "images").resolve()
 EXPECTED_SAMPLES_PER_CLASS = 3 if IS_CI else 300
 EXPECTED_TOTAL = 3 * 3 if IS_CI else 300 * 3  # 3 classes
 
