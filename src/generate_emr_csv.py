@@ -145,7 +145,7 @@ def generate_dataset(image_dir_override=None, output_path_override=None):
 
         for i in range(SAMPLES_PER_CLASS):
             image_path = str(
-                random.choice(image_files).relative_to(root_image_dir.parent)  # path of image respective to the project root
+                random.choice(image_files).relative_to(CURRENT_DIR.parent)  # path of image respective to the project root
             )
             text = build_emr(label, i)
             triage = triage_map[label]

@@ -89,14 +89,11 @@ class TriageDataset(Dataset):
             # Process image
             image_path = Path(row["image_path"])
 
-            # Normalize if CSV path includes redundant 'data/images/' prefix
-            redundant_prefix = Path("data/images")
-            if image_path.parts[:2] == redundant_prefix.parts:
-                image_path = Path(*image_path.parts[2:])  # drop 'data/images'
-
-            # Combine with base directory if not absolute
             if not image_path.is_absolute():
-                image_path = self.image_base_dir / image_path
+                if image_path.parts[:2] == ("data", self.image_base_dir.name):
+                    image_path = self.image_base_dir.parent / Path(*image_path.parts[1:])
+                else:
+                    image_path = self.image_base_dir / image_path
 
             if not image_path.exists():
                 if IS_CI:
