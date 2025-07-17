@@ -2,6 +2,7 @@ import torch  # PyTorch core utility for model training
 import os
 import sys
 import yaml
+import json
 import argparse
 import matplotlib.pyplot as plt  # for plotting
 
@@ -18,7 +19,7 @@ from torch.nn import (
 from torch.optim import Adam  # PyTorch core utility for model training,
 
 # Adam is the Optimizer, a gradient descent model
-from sklearn.metrics import accuracy_score, f1_score  # Evaluation metrics
+from sklearn.metrics import accuracy_score, f1_score, classification_report  # Evaluation metrics
 from sklearn.model_selection import StratifiedShuffleSplit
 
 
@@ -86,20 +87,30 @@ def stratified_split(dataset, val_ratio=0.2, seed=42):
 
 # Function to instantiate model and data, train, validate, plot results
 # and save the model
-def train_model(mode="multimodal"):
+def train_model(mode="multimodal", use_wandb=False):
+    if use_wandb:
+        import wandb
+
     cfg = load_config(mode)
     device = torch.device(
         "cuda" if torch.cuda.is_available() else "cpu"
     )  # Use GPU if available or else use CPU
-
     dataset_dir = os.path.join(base_dir, "data", "emr_records.csv")
     dataset = TriageDataset(csv_file=dataset_dir, mode=mode)
-
     model = MediLLMModel(
         dropout=cfg["dropout"], hidden_dim=cfg["hidden_dim"], mode=mode
     ).to(
         device
     )  # moves the model to selected device
+
+    if use_wandb:
+        # Initialize Weights & Biases
+        wandb.init(
+            project="MediLLM_Final",
+            name=f"train_{mode}",
+            config=cfg
+        )
+        wandb.config.update({"mode": mode})
 
     train_set, val_set = stratified_split(dataset)
     batch_size = cfg["batch_size"]
@@ -117,6 +128,7 @@ def train_model(mode="multimodal"):
 
     # Lists to store accuracy per epoch for plotting
     train_acc, val_acc = [], []
+    train_f1s, val_f1s = [], []
 
     for epoch in range(cfg["epochs"]):
         model.train()  # Activate training the model, enable dropout
@@ -182,6 +194,7 @@ def train_model(mode="multimodal"):
         #    instance, then averages across all samples, row-wise,
         #    not class-wise
         train_acc.append(acc)  # Append to a list for plotting
+        train_f1s.append(f1)
 
         print(f"Train Accuracy: {acc:.4f}, F1 Score: {f1:.4f}")
 
@@ -228,14 +241,30 @@ def train_model(mode="multimodal"):
         # Recall: How many real items did it actually spot
         # (TP / (TP + FN)).
         val_acc.append(val_acc_epoch)
+        val_f1s.append(val_f1)
 
         print(f"Val Accuracy: {val_acc_epoch:.4f}, F1 Score: {val_f1:.4f}")
 
+        # Log to Weights & Biases
+        if use_wandb:
+            wandb.log({
+                "epoch": epoch + 1,
+                "train/accuracy": acc,
+                "train/f1": f1,
+                "val/accuracy": val_acc_epoch,
+                "val/f1": val_f1
+            })
+
     # Save model
-    model_path = os.path.join(base_dir, f"medi_llm_model_{mode}.pth")
+    model_path = os.path.join(base_dir, f"medi_llm_fullmodel_{mode}.pt")
     torch.save(
-        model.state_dict(), model_path
-    )  # Saves the model weights only not total architecture to reuse later
+        model, model_path
+    )  # Saves the full model
+    print(f"💾 Saved full model to {model_path}")
+
+    # Save to Weights & Biases
+    if use_wandb:
+        wandb.save(model_path)
 
     # Plot accuracy
     plot_path = os.path.join(base_dir, "assets", f"model_training_curve_{mode}.png")
@@ -246,17 +275,63 @@ def train_model(mode="multimodal"):
     plt.savefig(plot_path)
     print(f"✅ Saved training curve to {plot_path}")
 
+    if use_wandb:
+        wandb.log({"training_curve": wandb.Image(plot_path)})
+
+    # Save training metrics to JSON
+    results = {
+        "train_acc": train_acc,
+        "val_acc": val_acc,
+        "train_f1": train_f1s,
+        "val_f1": val_f1s,
+        "final_train_acc": train_acc[-1],
+        "final_val_acc": val_acc[-1],
+        "final_train_f1": train_f1s[-1],
+        "final_val_f1": val_f1s[-1]
+    }
+
+    results_dir = os.path.join(base_dir, "results")
+    os.makedirs(results_dir, exist_ok=True)
+    results_path = os.path.join(results_dir, f"metrics_{mode}.json")
+
+    with open(results_path, "w") as f:
+        json.dump(results, f, indent=2)
+    print(f"📊 Saved training metrics to {results_path}")
+
+    # Classification Report
+    class_report = classification_report(val_labels, val_preds, output_dict=True, zero_division=0, target_names=["low", "medium", "high"])
+    print("\n🗓️ Classification Report (Per Class on Validation Set):")
+    for cls, metrics in class_report.items():
+        if cls in ["low", "medium", "high"]:
+            print(f"{cls:>9} -> Precision: {metrics['precision']:.3f}, Recall: {metrics['recall']:.3f}, F1: {metrics['f1-score']:.3f}")
+
+    class_report_path = os.path.join(results_dir, f"classification_report_{mode}.json")
+    with open(class_report_path, "w") as f:
+        json.dump(class_report, f, indent=2)
+    print(f"📊 Saved per-class metrics to {class_report_path}")
+
+    if use_wandb:
+        for cls in ["low", "medium", "high"]:
+            wandb.log({
+                f"classwise/{cls}_precision": class_report[cls]["precision"],
+                f"classwise/{cls}_recall": class_report[cls]["recall"],
+                f"classwise/{cls}_f1": class_report[cls]["f1-score"],
+            })
+        wandb.finish()
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--mode", choices=["text", "image", "multimodal"], default="multimodal"
     )
+    parser.add_argument("--wandb", action="store_true", help="Enable Weights & Biases logging")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
     train_model(
-        mode=args.mode
+        mode=args.mode,
+        use_wandb=args.wandb
     )  # Only runs if file is run directly not when it is imported
