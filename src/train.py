@@ -22,16 +22,15 @@ from torch.optim import Adam  # PyTorch core utility for model training,
 from sklearn.metrics import accuracy_score, f1_score, classification_report  # Evaluation metrics
 from sklearn.model_selection import StratifiedShuffleSplit
 
-
-from src.triage_dataset import TriageDataset  # Dataset Class
-from src.multimodal_model import MediLLMModel  # Mutlimodal Model
-
 # Setup base path
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 # Automatically add Project root to python import path
 base_dir = os.path.dirname(os.path.dirname(__file__))
 if base_dir not in sys.path:
     sys.path.append(base_dir)
+
+from src.triage_dataset import TriageDataset  # Dataset Class
+from src.multimodal_model import MediLLMModel  # Mutlimodal Model
 
 
 def load_config(mode):
