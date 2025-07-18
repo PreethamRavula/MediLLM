@@ -95,7 +95,12 @@ def train_model(mode="multimodal", use_wandb=False):
         "cuda" if torch.cuda.is_available() else "cpu"
     )  # Use GPU if available or else use CPU
     dataset_dir = os.path.join(base_dir, "data", "emr_records.csv")
-    dataset = TriageDataset(csv_file=dataset_dir, mode=mode)
+    dataset_kwargs = {"csv_file": dataset_dir, "mode": mode}
+    if mode in ["image", "multimodal"]:
+        image_dir = os.path.join(base_dir, "data", "images")
+        dataset_kwargs["image_base_dir"] = image_dir
+
+    dataset = TriageDataset(**dataset_kwargs)
     model = MediLLMModel(
         dropout=cfg["dropout"], hidden_dim=cfg["hidden_dim"], mode=mode
     ).to(
