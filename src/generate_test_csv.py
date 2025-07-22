@@ -9,7 +9,7 @@ CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent
 IMAGE_DIR = PROJECT_ROOT / "data" / "images"
 TRAIN_CSV_PATH = PROJECT_ROOT / "data" / "emr_records.csv"
-OUTPUT_CSV = PROJECT_ROOT / "data" / "test_samples.csv"
+OUTPUT_CSV = PROJECT_ROOT / "test_samples.csv"
 LABELS = ["COVID", "NORMAL", "VIRAL PNEUMONIA"]
 
 alt_symptoms = [
