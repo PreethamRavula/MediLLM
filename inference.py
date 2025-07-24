@@ -60,7 +60,7 @@ def main():
     parser.add_argument("--model_path", type=str, required=True, help="path to the model")
     parser.add_argument("--config", type=str, default="config/config.yaml", help="Path to config file")
     parser.add_argument("--image_dir", type=str, default="data/images", help="path to images folder")
-    parser.add_argument("--output_csv", type=str, default="predictions.csv", help="path to output file")
+    parser.add_argument("--output_csv", type=str, help="Optional custome path to output file")
     parser.add_argument("--batch_size", type=int, help="Optional override for batch size")
     args = parser.parse_args()
 
@@ -76,6 +76,10 @@ def main():
 
     if args.mode in ["image", "multimodal"] and not Path(args.image_dir).exists():
         raise FileNotFoundError(f"❌ Image directory not found at: {args.image_dir}")
+
+    # Always generate mode-specific output file if not provided
+    if not args.output_csv:
+        args.output_csv = f"predictions_{args.mode}.csv"
 
     config = load_config(config_path=args.config, mode=args.mode)
     batch_size = args.batch_size or config["batch_size"]
