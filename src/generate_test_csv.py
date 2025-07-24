@@ -12,6 +12,9 @@ TRAIN_CSV_PATH = PROJECT_ROOT / "data" / "emr_records.csv"
 OUTPUT_CSV = PROJECT_ROOT / "test_samples.csv"
 LABELS = ["COVID", "NORMAL", "VIRAL PNEUMONIA"]
 
+# Labels to triage map
+triage_map = {"COVID": "high", "NORMAL": "low", "VIRAL PNEUMONIA": "medium"}
+
 alt_symptoms = [
     "The patient has noted intermittent chest pressure and occasional shortness of breath.",
     "A gradual onset of dry cough with mild respiratory discomfort has been documented.",
@@ -130,15 +133,16 @@ def generate_test_csv():
                              f"Needed {SAMPLES_PER_CLASS}, found {len(unseen_images)}")
         sampled_images = random.sample(unseen_images, SAMPLES_PER_CLASS)
 
-        for img_path in sampled_images:
+        for i, img_path in enumerate(sampled_images):
             relative_path = str(img_path.relative_to(PROJECT_ROOT))
             text = build_alt_emr(label)
-            records.append([text, relative_path, label])
+            triage = triage_map[label]
+            records.append([f"{label}-{i + 1}", text, relative_path, triage])
 
     random.shuffle(records)
     with open(OUTPUT_CSV, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["text", "image_path", "label"])
+        writer.writerow(["patient_id", "emr_text", "image_path", "triage_level"])
         writer.writerows(records)
 
     print(f"✅ test CSV file generated: {OUTPUT_CSV}")
