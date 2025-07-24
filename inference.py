@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader
 from sklearn.metrics import accuracy_score, f1_score, classification_report
 from pathlib import Path
 from tqdm import tqdm
+from datetime import datetime
 
 from src.triage_dataset import TriageDataset
 from src.multimodal_model import MediLLMModel
@@ -62,6 +63,7 @@ def main():
     parser.add_argument("--image_dir", type=str, default="data/images", help="path to images folder")
     parser.add_argument("--output_csv", type=str, help="Optional custome path to output file")
     parser.add_argument("--batch_size", type=int, help="Optional override for batch size")
+    parser.add_argument("--save_misclassified_only", action="store_true", help="Save only misclassified samples")
     args = parser.parse_args()
 
     # Checks
@@ -79,7 +81,8 @@ def main():
 
     # Always generate mode-specific output file if not provided
     if not args.output_csv:
-        args.output_csv = f"predictions_{args.mode}.csv"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        args.output_csv = f"predictions_{args.mode}_{timestamp}.csv"
 
     config = load_config(config_path=args.config, mode=args.mode)
     batch_size = args.batch_size or config["batch_size"]
@@ -113,6 +116,10 @@ def main():
         "image_path": paths,
     })
 
+    # Filter misclassified rows if needed
+    if args.save_missclassified_only:
+        df = df[df["predicted"] != df["true"]]
+
     print(df[["patient_id", "predicted", "true"]])
     # Ensure output directory exists
     output_path = Path(args.output_csv)
@@ -121,7 +128,7 @@ def main():
     # Save predictions
     df.to_csv(args.output_csv, index=False)
     print(f"✅ Saved predictions to {args.output_csv}")
-    print(f"\n🔎 Processed {len(preds)} samples.")
+    print(f"\n🔎 Processed {len(preds)} samples ({'missclassified only' if args.save_misclassified_only else 'all'}).")
 
     # print classification report + metrics if labels exist
     if all(label in ["low", "medium", "high"] for label in true_labels):
