@@ -85,6 +85,10 @@ class TriageDataset(Dataset):
             output["input_ids"] = tokens["input_ids"].squeeze(0)
             output["attention_mask"] = tokens["attention_mask"].squeeze(0)
 
+            # for inference
+            if "text" in self.df.columns:
+                output["raw_text"] = text
+
         if self.mode in ["image", "multimodal"]:
             # Process image
             image_path = Path(row["image_path"])
@@ -103,9 +107,14 @@ class TriageDataset(Dataset):
             image = Image.open(image_path).convert("RGB")
             output["image"] = self.transform(image)
 
+            # addition for inference
+            if "image_path" in self.df.columns:
+                output["image_path"] = image_path
+
         # Label
-        output["label"] = torch.tensor(
-            self.label_map[row["triage_level"]], dtype=torch.long
-        )
+        if "label" in row and row["label"] in self.label_map:
+            output["label"] = torch.tensor(
+                self.label_map[row["triage_level"]], dtype=torch.long
+            )
 
         return output
