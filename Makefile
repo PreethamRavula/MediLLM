@@ -1,6 +1,6 @@
-MODEL_PATH_TEXT=medi_llm_fullmodel_text.pt
-MODEL_PATH_IMAGE=medi_llm_fullmodel_image.pt
-MODEL_PATH_MULTIMODAL=medi_llm_fullmodel_multimodal.pt
+MODEL_PATH_TEXT=medi_llm_state_dict_text.pth
+MODEL_PATH_IMAGE=medi_llm_state_dict_image.pth
+MODEL_PATH_MULTIMODAL=medi_llm_state_dict_multimodal.pth
 SCRIPT=inference.py
 
 # Run inference for multimodal model

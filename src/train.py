@@ -5,6 +5,8 @@ import yaml
 import json
 import argparse
 import matplotlib.pyplot as plt  # for plotting
+import random
+import numpy as np
 
 from tqdm import tqdm  # loading bar for loops
 from torch.utils.data import (
@@ -31,6 +33,15 @@ if base_dir not in sys.path:
 
 from src.triage_dataset import TriageDataset  # Dataset Class
 from src.multimodal_model import MediLLMModel  # Mutlimodal Model
+
+
+def set_seed(seed=42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def load_config(mode):
@@ -87,6 +98,8 @@ def stratified_split(dataset, val_ratio=0.2, seed=42):
 # Function to instantiate model and data, train, validate, plot results
 # and save the model
 def train_model(mode="multimodal", use_wandb=False):
+    set_seed(42)
+
     if use_wandb:
         import wandb
 
@@ -110,7 +123,7 @@ def train_model(mode="multimodal", use_wandb=False):
     if use_wandb:
         # Initialize Weights & Biases
         wandb.init(
-            project="MediLLM_Final",
+            project="MediLLM_Final_v2",
             name=f"train_{mode}",
             config=cfg
         )
@@ -260,11 +273,11 @@ def train_model(mode="multimodal", use_wandb=False):
             })
 
     # Save model
-    model_path = os.path.join(base_dir, f"medi_llm_fullmodel_{mode}.pt")
+    model_path = os.path.join(base_dir, f"medi_llm_state_dict_{mode}.pth")
     torch.save(
-        model, model_path
-    )  # Saves the full model
-    print(f"💾 Saved full model to {model_path}")
+        model.state_dict(), model_path
+    )  # Saves only model weights and biases
+    print(f"💾 Saved model weights and biases to {model_path}")
 
     # Save to Weights & Biases
     if use_wandb:

@@ -100,21 +100,26 @@ class TriageDataset(Dataset):
                     image_path = self.image_base_dir / image_path
 
             if not image_path.exists():
-                if IS_CI:
-                    raise FileNotFoundError(f"[CI] Image file not found: {image_path}")
-                else:
-                    raise FileNotFoundError(f"[LOCAL] Image file not found: {image_path}")
+                msg = f"Image file not found: {image_path}"
+                raise FileNotFoundError(f"[CI] {msg}" if IS_CI else f"[LOCAL] {msg}")
+
             image = Image.open(image_path).convert("RGB")
             output["image"] = self.transform(image)
 
-            # addition for inference
-            if "image_path" in self.df.columns:
-                output["image_path"] = image_path
-
         # Label
-        if "label" in row and row["label"] in self.label_map:
+        if "triage_level" in row and row["triage_level"] in self.label_map:
             output["label"] = torch.tensor(
                 self.label_map[row["triage_level"]], dtype=torch.long
             )
+
+        # fields for inference output
+        if "patient_id" in row:
+            output["patient_id"] = row["patient_id"]
+
+        if "emr_text" in row and "emr_text" not in output:
+            output["emr_text"] = row["emr_text"]
+
+        if "image_path" in row and "image_path" not in output:
+            output["image_path"] = str(image_path) if "image_path" in locals() else row["image_path"]
 
         return output
