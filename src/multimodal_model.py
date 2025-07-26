@@ -3,6 +3,16 @@ import torch.nn as nn
 import timm  # For Image models like ResNet
 from transformers import AutoModel  # Pretrained text encoders
 
+# ================================================
+# NOTE:
+# Future upgrades can include:
+#   - MLP Fusion
+#   - Bilinear Pooling
+#   - Attention-based Fusion
+#   - Cross-modal Transformers
+# These require structural changes to the forward() logic.
+# ================================================
+
 
 class MediLLMModel(nn.Module):
     def __init__(
@@ -112,6 +122,25 @@ class MediLLMModel(nn.Module):
             )  # Concatenates text and image features along feature dimension
             # [CLS vector from BERT] + [ResNet image vector]
             # -> [batch_size, 2816]
+            # === Placeholder: Advanced Fusion Methods ===
+            # Option 1: Bilinear Fusion
+            # fused = torch.bmm(text_feat.unsqueeze(2), img_feat.unsqueeze(1)).view(batch_size, -1)
+            # fused = self.bilinear_fc(fused)
+
+            # Option 2: Cross-Modal Attention
+            # - Use attention mechanism where one modality attends to another
+            # - E.g., compute attention weights over image using text as query
+            # - Requires custom attention modules or transformers
+
+            # Option 3: Cross-modal Transformer Encoder
+            # - Concatenate image and text features as tokens
+            # - Feed into transformer encoder with positional embeddings
+
+            # Option 4: Fusion Logic
+            # fused = torch.cat([text_feat, img_feat], dim=1)
+            # fused = self.dropout(torch.relu(self.fusion_fc1(fused)))
+            # fused = self.dropout(torch.relu(self.fusion_fc2(fused)))
+            # return self.classifier(fused)
 
         # Return logits for each class, later apply softmax during evaluation
         return self.classifier(features)

@@ -26,6 +26,8 @@ def predict(model, dataloader, device):
     all_preds, all_truths = [], []
     all_texts, all_paths, all_ids = [], [], []
 
+    inv_map = {0: "low", 1: "medium", 2: "high"}
+
     with torch.no_grad():
         for batch in tqdm(dataloader, desc="Running inference"):
             input_ids = batch.get("input_ids", None)
@@ -42,10 +44,22 @@ def predict(model, dataloader, device):
             preds = torch.argmax(outputs, dim=1).cpu().tolist()
             all_preds.extend(preds)
 
-            all_truths.extend(batch.get("triage_level", [-1] * len(preds)))
-            all_texts.extend(batch.get("emr_text", [""] * len(preds)))
-            all_paths.extend([str(p) for p in batch.get("image_path", [""] * len(preds))])
-            all_ids.extend(batch.get("patient_id", [f"patient_{i}" for i in range(len(preds))]))
+            batch_size = len(preds)
+
+            # Patient ID (original from dataset)
+            all_ids.extend(batch["patient_id"])
+
+            # EMR Text
+            all_texts.extend(batch.get("emr_text", [""] * batch_size))
+
+            # Image Path
+            all_paths.extend(batch.get("image_path", [""] * batch_size))
+
+            # True Labels
+            if "label" in batch:
+                all_truths.extend([inv_map.get(label.item(), "") for label in batch["label"]])
+            else:
+                all_truths.extend([""] * batch_size)
 
     return all_preds, all_truths, all_texts, all_paths, all_ids
 
@@ -105,40 +119,39 @@ def main():
     preds, truths, texts, paths, ids = predict(model, dataloader, DEVICE)
 
     label_inv_map = inverse_label_map()
-    pred_labels = [label_inv_map(p) for p in preds]
-    true_labels = [label_inv_map(t) if t in label_inv_map else "" for t in truths]
+    pred_labels = [label_inv_map[p] for p in preds]
 
     df = pd.DataFrame({
         "patient_id": ids,
         "predicted": pred_labels,
-        "true": true_labels,
+        "truth_label": truths,
         "emr_text": texts,
         "image_path": paths,
     })
 
     # Filter misclassified rows if needed
-    if args.save_missclassified_only:
-        df = df[df["predicted"] != df["true"]]
+    if args.save_misclassified_only:
+        df = df[df["predicted"] != df["truth_label"]]
 
-    print(df[["patient_id", "predicted", "true"]])
+    print(df[["patient_id", "predicted", "truth_label"]])
     # Ensure output directory exists
     output_path = Path(args.output_csv)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Save predictions
     df.to_csv(args.output_csv, index=False)
-    print(f"✅ Saved predictions to {args.output_csv}")
+    print(f"✅ Saved predictions to {output_path}")
     print(f"\n🔎 Processed {len(preds)} samples ({'missclassified only' if args.save_misclassified_only else 'all'}).")
 
     # print classification report + metrics if labels exist
-    if all(label in ["low", "medium", "high"] for label in true_labels):
+    if all(label in ["low", "medium", "high"] for label in truths):
         print("\n📊 Classification Report:")
-        print(classification_report(true_labels, pred_labels))
+        print(classification_report(truths, pred_labels))
 
-        acc = accuracy_score(true_labels, pred_labels)
-        f1 = f1_score(true_labels, pred_labels, average="weighted")
+        acc = accuracy_score(truths, pred_labels)
+        f1 = f1_score(truths, pred_labels, average="weighted")
         print(f"\n🎯 Accuracy: {acc:.4f}")
-        print(f"🎯 Weighted F1 Score: {f1:.4f}")
+        print(f"\n🎯 Weighted F1 Score: {f1:.4f}")
 
 
 if __name__ == "__main__":
