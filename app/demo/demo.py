@@ -26,17 +26,26 @@ def classify(mode, emr_text, image):
     return predict(model, mode, emr_text=emr_text, image=image)
 
 
-demo = gr.Interface(
-    fn=classify,
-    inputs=[
-        gr.Radio(choices=["text", "image", "multimodal"], value=DEFAULT_MODE, label="Select Mode"),
-        gr.Textbox(lines=6, label="EMR Text"),
-        gr.Image(type="pil", label="Chest X-ray")
-    ],
-    outputs=gr.Text(label="Predicted Triage Level"),
-    title="🩺 Medi-LLM: Multimodal Clinical Triage Assistant 🩻",
-    description="Select a mode and input either EMR text, X-ray image, or both to get triage predictions."
-)
+with gr.Blocks(theme=gr.themes.Glass(), css=".centered {text-align: center;}") as demo:
+    # Centered title and subtitle
+    gr.Markdown("<h2 class='centered'>🩺 Medi-LLM: Clinical Triage Assistant 🩻</h2>")
+    gr.Markdown("<p class='centered'>Upload a chest X-ray and/or enter EMR text to get a triage level prediction.</p>")
+
+    # Mode selection
+    with gr.Row():
+        mode = gr.Radio(["text", "image", "multimodal"], value=DEFAULT_MODE, label="Select Input Mode")
+
+    # Input: EMR text and/or image
+    with gr.Row():
+        emr_text = gr.Textbox(lines=6, label="EMR Text", placeholder="Enter clinical notes here...")
+        image = gr.Image(type="pil", label="Chest X-ray")
+
+    with gr.Row():
+        submit_btn = gr.Button("Run Inference")
+
+    result = gr.Textbox(label="Prediction")
+
+    submit_btn.click(fn=classify, inputs=[mode, emr_text, image], outputs=result)
 
 if __name__ == "__main__":
     demo.launch()
