@@ -7,12 +7,19 @@ from sklearn.metrics import accuracy_score, f1_score, classification_report
 from pathlib import Path
 from tqdm import tqdm
 from datetime import datetime
+from torchvision import transforms
 
 from src.triage_dataset import TriageDataset
 from src.multimodal_model import MediLLMModel
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+inference_transform = transforms.Compose([
+    transforms.Resize((256, 256)),
+    transforms.CenterCrop(224),
+    transforms.ToTensor()
+])
 
 
 def load_config(config_path="config/config.yaml", mode="multimodal"):
@@ -104,8 +111,10 @@ def main():
     dataset = TriageDataset(
         csv_file=args.csv_path,
         mode=args.mode,
-        image_base_dir=args.image_dir
+        image_base_dir=args.image_dir,
+        transform=inference_transform  # avoid random augmentations during inference
     )
+
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
     model = MediLLMModel(
