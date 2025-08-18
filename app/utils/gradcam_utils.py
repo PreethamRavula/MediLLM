@@ -16,7 +16,7 @@ def register_hooks(model):
 
     layer = model.image_encoder.layer4
     fwd_handle = layer.register_forward_hook(forward_hook)
-    bwd_handle = layer.register_backward_hook(backward_hook)
+    bwd_handle = layer.register_full_backward_hook(backward_hook)
 
     return activations, gradients, fwd_handle, bwd_handle
 
@@ -25,16 +25,24 @@ def generate_gradcam(image_pil, activations, gradients):
     grads = gradients["value"]
     acts = activations["value"]
 
+    # Out-of-place Grad-CAM weighting
     pooled_grads = torch.mean(grads, dim=[0, 2, 3])
     for i in range(acts.shape[1]):
         acts[:, i, :, :] *= pooled_grads[i]
 
-    heatmap = torch.mean(acts, dim=1).squeeze().cpu().numpy()
+    # Normalize heatmap
+    heatmap = torch.mean(acts, dim=1).squeeze().detach().cpu().numpy()
     heatmap = np.maximum(heatmap, 0)
-    heatmap /= heatmap.max()
+    heatmap /= heatmap.max() + 1e-8
 
-    heatmap = Image.fromarray(np.uint8(255 * heatmap)).resize((224, 224)).convert("L")
-    image_np = np.array(image_pil.resize((224, 224)).convert("RGB"))
-    overlay = np.uint8(0.6 * image_np + 0.4 * plt.cm.jet(heatmap / 255.0)[:, :, :3] * 255)
+    # Convert to image and overlay
+    heatmap_resized = Image.fromarray(np.uint8(255 * heatmap)).resize((224, 224))
+    heatmap_array = np.array(heatmap_resized)
+    colormap = plt.cm.jet(heatmap_array / 255.0)[..., :3]  # shape (H, W, 3), RGB
 
-    return Image.fromarray(overlay.astype(np.uint8))
+    # Combine with original image
+    image_np = np.array(image_pil.resize((224, 224)).convert("RGB")) / 255.0
+    overlay = (0.6 * image_np + 0.4 * colormap) * 255
+    overlay = overlay.astype(np.uint8)
+
+    return Image.fromarray(overlay)

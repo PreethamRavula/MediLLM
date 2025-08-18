@@ -1,0 +1,379 @@
+/* === Base Layout === */
+body {
+    background-color: #1a1b26 !important;
+    color: #c0caf5 !important;
+    font-family: 'Fira Code', monospace;
+}
+
+/* === Welcome Banner Hover Glow === */
+.welcome-banner:hover {
+    box-shadow: 0 0 12px 3px #7aa2f7 !important;
+    transition: 0.3s ease-in-out;
+    cursor: pointer;
+}
+
+/* === Text Inputs Focus & Hover === */
+#emr_textbox textarea:hover,
+#emr_textbox textarea:focus {
+    border: 1px solid #7aa2f7 !important;
+    box-shadow: 0 0 6px 2px #7aa2f7 !important;
+}
+
+/* === Image Upload Hover & Focus === */
+#xray_image:hover,
+#xray_image:focus {
+    border: 1px solid #9ece6a !important;
+    box-shadow: 0 0 6px 2px #9ece6a !important;
+}
+
+/* === Grad-CAM Image Hover & Focus === */
+.gr-image-box:hover,
+.gr-image-box:focus {
+    border: 1px solid #f7768e !important;
+    box-shadow: 0 0 6px 2px #f7768e !important;
+}
+
+/* === Token Attention Hover & Focus Enhancements === */
+.token-attn-box:hover,
+.token-attn-box:focus {
+    border: 1px solid #bb9af7 !important;
+    box-shadow: 0 0 6px 2px #bb9af7 !important;
+}
+
+.token-attn-box .token {
+    transition: background-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out, color 0.3s ease-in-out;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+    margin: 2px;
+    display: inline-block;
+    position: relative;
+    cursor: help;
+}
+
+/* Custom tooltip on hover using title attribute */
+/* === Tooltip decoding for attention === */
+.token-attn-box .token::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    background: #1e1e2e;
+    color: #c0caf5;
+    padding: 4px 8px;
+    border-radius: 4px;
+    top: -30px;
+    left: 0;
+    white-space: nowrap;
+    font-size: 0.85em;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
+    z-index: 10;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.token-attn-box .token:hover::after {
+    opacity: 1;
+}
+
+/* === Tooltip arrow for custom data-tooltip === */
+.token-attn-box .token[data-tooltip]:hover::before {
+    content: "";
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 6px solid #1e1e2e;  /* Match tooltip background */
+    z-index: 9;
+}
+
+/* Hover and active styles */
+.token-attn-box .token:hover {
+    outline: 2px solid #bb9af7 !important;
+    box-shadow: 0 0 8px 2px #bb9af7 !important;
+    cursor: pointer;
+}
+
+/* === Highlight top-attention token with glow === */
+.token-attn-box .token[style*="rgba(247, 118, 142, 1)"] {
+    box-shadow: 0 0 10px 5px rgba(247, 118, 142, 0.85);
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+/* === Attention-based text color tinting for stronger contrast === */
+.token-attn-box .token[style*="rgba(255, 138, 101"],
+.token-attn-box .token[style*="rgba(255, 138, 101, 1)"] {
+    color: #ff8a65;
+}
+
+.token-attn-box .token[style*="rgba(251, 192, 45"],
+.token-attn-box .token[style*="rgba(251, 192, 45, 1)"] {
+    color: #fbc02d;
+}
+
+.token-attn-box .token[style*="rgba(128, 222, 234"],
+.token-attn-box .token[style*="rgba(128, 222, 234, 1)"] {
+    color: #80deea;
+}
+
+.token-attn-box .token[style*="rgba(122, 162, 247"],
+.token-attn-box .token[style*="rgba(122, 162, 247, 1)"] {
+    color: #7aa2f7;
+}
+
+.token-attn-box .token[style*="rgba(247, 118, 142"],
+.token-attn-box .token[style*="rgba(247, 118, 142, 1)"] {
+    color: #f7768e;
+}
+
+/* === Token Attention Gradient Bar === */
+.attention-gradient-bar {
+    flex-grow: 1;
+    height: 14px;
+    border-radius: 8px;
+    margin-top: 8px;
+    background: linear-gradient(
+        to right,
+        #7aa2f7 0%,
+        #80deea 25%,
+        #fbc02d 50%,
+        #ff8a65 75%,
+        #f7768e 100%
+    );
+    box-shadow: 0 0 3px rgba(0,0,0,0.4) inset;
+}
+
+/* === Top5 tokens box === */
+.top5-box .top5-table {
+  box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+  border-radius: 10px;
+}
+.top5-box h4 { letter-spacing: .2px; }
+
+/* === Triage Prediction Box Glow (based on class) === */
+.prediction-high {
+    border: 2px solid #f7768e !important;
+    box-shadow: 0 0 8px 3px #f7768e !important;
+}
+
+.prediction-medium {
+    border: 2px solid #e0af68 !important;
+    box-shadow: 0 0 8px 3px #e0af68 !important;
+}
+
+.prediction-low {
+    border: 2px solid #e0af68 !important;
+    box-shadow: 0 0 8px 3px #e0af68 !important;
+}
+
+/* === Basic Radio Button Styling (Role + Mode) === */
+#role_selector label,
+#mode_selector label {
+    display: block;
+    margin: 6px 0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #3b4261;
+    background-color: #1f2335;
+    color: #c0caf5;
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+}
+
+/* Hover and Focus Glow */
+#role_selector label:hover,
+#role_selector input:focus + label,
+#mode_selector label:hover,
+#mode_selector input:focus + label {
+    border: 1px solid #a0cfff !important;
+    box-shadow: 0 0 6px 2px #a0cfff !important;
+}
+
+/* Selected Option */
+#role_selector input:checked + label,
+#mode_selector input:checked + label {
+    background-color: #3d59a1 !important;
+    border: 1px solid #7aa2f7 !important;
+    color: white !important;
+    box-shadow: 0 0 6px 2px #7aa2f7 !important;
+}
+
+/* Optional: Ensure radio circles are visible */
+#role_selector input,
+#mode_selector input {
+    margin-right: 8px;
+    transform: scale(1.1);
+}
+
+/* === Buttons === */
+.gr-button {
+    border-radius: 8px !important;
+    font-weight: 500;
+}
+
+/* === Primary/Secondary Buttons via IDs === */
+/* Inference (blue) */
+#inference_btn {
+  background-color: #7aa2f7 !important;
+  color: #ffffff !important;
+}
+#inference_btn:hover {
+  background-color: #409eff !important;
+  transform: translateY(-1px);
+  box-shadow: 0 0 10px rgba(122,162,255,0.55) !important;
+}
+
+/* Reset (red/coral) */
+#reset_btn {
+  background-color: #f7768e !important;
+  color: #ffffff !important;
+}
+#reset_btn:hover {
+  background-color: #ff5c7a !important;
+  transform: translateY(-1px);
+  box-shadow: 0 0 12px rgba(255,92,122,0.75) !important;
+}
+
+/* Export (blue, same as inference) */
+#export_button {
+  background-color: #7aa2f7 !important;
+  color: #ffffff !important;
+}
+#export_button:hover {
+  background-color: #409eff !important;
+  transform: translateY(-1px);
+  box-shadow: 0 0 10px rgba(122,162,255,0.45) !important;
+}
+
+/* Clear Logs (red, same as reset) */
+#clear_button {
+  background-color: #f7768e !important;
+  color: #ffffff !important;
+}
+#clear_button:hover {
+  background-color: #ff5c7a !important;
+  transform: translateY(-1px);
+  box-shadow: 0 0 12px rgba(255,92,122,0.75) !important;
+}
+
+/* Confirm Clear (yellow base, GREEN glow on hover) */
+#confirm_button {
+  background-color: #e0af68 !important;
+  color: #ffffff !important;
+  border-radius: 8px !important;
+  padding: 10px 14px !important;
+  font-weight: 600 !important;
+  border: none !important;
+  cursor: pointer !important;
+}
+
+#confirm_button:hover {
+  background-color: #d9a147 !important;
+  box-shadow: 0 0 10px 3px rgba(158,206,106,0.9) !important; /* green glow */
+  border: 1px solid #9ece6a !important;
+}
+
+/* === Tab Panels === */
+.gr-tabitem {
+    background-color: #1f2335 !important;
+    color: #c0caf5 !important;
+}
+
+/* === Markdown(centered) === */
+.centered {
+    text-align: center;
+}
+
+/* === Loading message === */
+.loading-msg {
+    text-align: center;
+    color: #7aa2f7;
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+/* === Hover & Focus Glow for CSV filename input === */
+#csv_filename input:hover,
+#csv_filename textarea:hover,
+#csv_filename input:focus,
+#csv_filename textarea:focus {
+    border: 1px solid #7aa2f7 !important;
+    box-shadow: 0 0 6px 2px #7aa2f7 !important;
+    transition: 0.3s ease-in-out;
+}
+
+/* === Blinking effect for CSV download box === */
+@keyframes blink-box {
+    0% { box-shadow: 0 0 6px 2px #7aa2f7; }
+    50% { box-shadow: 0 0 12px 4px #7aa2f7; }
+    100% { box-shadow: 0 0 6px 2px #7aa2f7; }
+}
+
+.blink-csv {
+    animation: blink-box 1.5s ease-in-out 3;
+    border-radius: 8px;
+    border: 1px solid #7aa2f7 !important;
+}
+
+/* === Prediction Count Box === */
+#prediction_count_box {
+    font-size: 1em;
+    padding: 10px;
+    border-radius: 6px;
+    background-color: #1f2335;
+    color: #c0caf5;
+    border: 1px solid #7aa2f7;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+#prediction_count_box:hover,
+#prediction_count_box:focus {
+    border: 1px solid #a0cfff !important;
+    box-shadow: 0 0 6px 2px #7aa2f7 !important;
+}
+
+/* === Clear Logs Confirmation Box === */
+#confirm_box {
+    font-size: 0.95em;
+    padding: 10px;
+    border-radius: 6px;
+    background-color: #1f2335;
+    color: #c0caf5;
+    border: 1px solid #e0af68;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+#confirm_box:hover,
+#confirm_box:focus {
+    border: 1px solid #e0af68 !important;
+    box-shadow: 0 0 6px 2px #e0af68 !important;
+}
+
+/* Export status message styling */
+#export_status {
+  color: #9ece6a;              /* Greenish success color */
+  font-weight: bold;
+  padding: 8px 12px;
+  border: 1px solid #9ece6a;
+  background-color: #1a1b26;   /* Match your dark background */
+  border-radius: 6px;
+  margin-top: 8px;
+  transition: opacity 0.5s ease;
+}
+
+/* Optional fade-out animation (if using JS or if Gradio later supports it natively) */
+#export_status.fade-out {
+  opacity: 0;
+}
+
+/* === Class level Probabilities === */
+.json-box {
+    background-color: #1e222e;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #7aa2f7;
+}
+

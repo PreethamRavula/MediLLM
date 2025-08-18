@@ -86,39 +86,51 @@ class MediLLMModel(nn.Module):
             nn.Linear(hidden_dim, num_classes),  # Final Classification output
         )
 
-    def forward(self, input_ids=None, attention_mask=None, image=None):
+    def forward(self, input_ids=None, attention_mask=None, image=None, output_attentions=False, return_raw_attentions=False):
         # input_ids shape: [batch, seq_length]
         # attention_mask: mask to ignore padding, same shape as input_ids
         # image: [batch, 3, 224, 224]
         # Text features
-        if self.mode == "text":
+        if self.mode in ["text", "multimodal"]:
             text_outputs = self.text_encoder(
-                input_ids=input_ids, attention_mask=attention_mask
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                output_attentions=output_attentions,
             )
             # feed tokenized text into the BERT Model which returns a
             # dictionary with last_hidden_state: [batch_size, seq_len,
             # hidden_size], pooler_output: [batch_size, hidden_size]
             # (CLS embeddings), hidden_states: List of tensors,
             # attentions(weights): List of Tensors
-            features = text_outputs.last_hidden_state[
-                :, 0, :
-            ]  # CLS token, return CLS tokens from all batches, position 0,
+            last_hidden = text_outputs.last_hidden_state  # CLS token, return CLS tokens from all batches, position 0,
             # a batch of 3 sentences has 3 CLS tokens
+            cls_embedding = last_hidden[:, 0, :]  # CLS tokens of all batches [batch, hidden_dim]
+
+            # Real token attention using last-layer CLS attention weights
+            # attentions = List[12 tensors] -> each [batch, heads, seq_len, seq_len]
+            token_attn_scores = None
+            raw_attentions = None
+            if output_attentions:
+                attention_maps = text_outputs.attentions
+                last_layer_attn = attention_maps[-1]  # [batch, heads, seq_len, seq_len]
+                avg_attn = last_layer_attn.mean(dim=1)  # Average across heads -> [batch, seq_len, seq_len]
+                token_attn_scores = avg_attn[:, 0, :]  # CLS attends to all tokens -> [batch, seq_len]
+                if return_raw_attentions:
+                    raw_attentions = attention_maps
+        else:
+            cls_embedding = None
+            token_attn_scores = None
+            raw_attentions = None
 
         # Image features
-        elif self.mode == "image":
-            features = self.image_encoder(
-                image
-            )  # pass the image through ResNet, returns a [batch, 2048] tensor
-
+        if self.mode == "image":
+            features = self.image_encoder(image)  # pass the image through ResNet, returns a [batch, 2048] tensor
+        elif self.mode == "text":  # text
+            features = cls_embedding
         else:  # multimodal
-            text_outputs = self.text_encoder(
-                input_ids=input_ids, attention_mask=attention_mask
-            )
-            text_feat = text_outputs.last_hidden_state[:, 0, :]  # CLS token
             image_feat = self.image_encoder(image)
             features = torch.cat(
-                (text_feat, image_feat), dim=1
+                (cls_embedding, image_feat), dim=1
             )  # Concatenates text and image features along feature dimension
             # [CLS vector from BERT] + [ResNet image vector]
             # -> [batch_size, 2816]
@@ -143,4 +155,9 @@ class MediLLMModel(nn.Module):
             # return self.classifier(fused)
 
         # Return logits for each class, later apply softmax during evaluation
-        return self.classifier(features)
+        logits = self.classifier(features)
+        return {
+            "logits": logits,
+            "token_attentions": token_attn_scores,  # [batch, seq_len] or None
+            "raw_attentions": raw_attentions if return_raw_attentions else None,
+        }

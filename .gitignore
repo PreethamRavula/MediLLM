@@ -1,43 +1,45 @@
-# Ignore Data files for tracking
-data/
-checkpoints/
+# --- Python ---
 __pycache__/
 *.py[cod]
+*.pyo
+*.so
+*.dylib
+.venv/
+.env
 .coverage
+.ipynb_checkpoints/
 
-# Weights & Biases
-wandb/
-wandb/*
-wandb_logs/
-
-# Optuna study databases
-*.db 
-
-# Checkpoints / logs
-checkpoints/
+# --- Data & Artifacts ---
+data/
+results/
 logs/
-*.pt
-.ipynb_checkpoints
-*.ckpt
-
-# Model files
-*.pth
-
-# Environment files
-.env 
-
-# logs
+checkpoints/
 *.log
 *.tmp
+*.db
 
-# --- EXCEPTIONS (ALLOW) --- 
+# Models / weights
+*.pt
+*.pth
+*.ckpt
+
+# W&B & experiment outputs
+wandb/
+wandb_logs/
+
+# Predictions / exports
+predictions_*.csv
+app/demo/uploads/
+app/demo/exports/
+
+# OS junk
+.DS_Store
+
+# --- Exceptions (allow small fixtures/samples) ---
 !data/dummy_images/
 !data/dummy_images/COVID/*.png
 !data/dummy_images/NORMAL/*.png
 !data/dummy_images/VIRAL PNEUMONIA/*.png
-
-# Allow test CSV for CI
-!data/test_emr_records.csv 
-
-# Mac system files
-.DS_Store
+!sample_data/**
+!tests/**
+!config/config.yaml.example
