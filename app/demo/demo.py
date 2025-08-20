@@ -539,11 +539,11 @@ def build_ui():
     # Load CSS safely (don't crash if file is missing on remote)
     style_path = Path(__file__).resolve().parent / "style.css"
     custom_css = style_path.read_text(encoding="utf-8") if style_path.exists() else ""
-
+    print("Loaded CSS bytes:", len(custom_css))
     with gr.Blocks(css=custom_css) as demo:
         # ----- Header -----
-        gr.Markdown("<h2 class='centered'>🩺 Medi-LLM: Clinical Triage Assistant 🩻</h2>")
-        gr.Markdown("<p class='centered'>Upload a chest X-ray and/or enter EMR text to get a triage level prediction.</p>")
+        gr.Markdown("## 🩺 Medi-LLM: Clinical Triage Assistant 🩻", elem_id="title")
+        gr.Markdown("Upload a chest X-ray and/or enter EMR text to get a triage level prediction.", elem_id="subtitle")
         gr.HTML(
             """
             <div class='welcome-banner' style="background-color: #24283b; border-left: 4px solid #7aa2f7; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
