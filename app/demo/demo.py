@@ -10,6 +10,7 @@ from pathlib import Path
 # Adds root directory to sys.path
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(ROOT_DIR))
+PERSIST_ROOT = Path("/data") if Path("/data").exists() else ROOT_DIR
 
 from app.utils.inference_utils import load_model, predict
 
@@ -114,23 +115,23 @@ def classify(role, mode, normalize_mode, emr_text, image, use_rollout):
 
     # Save image to file if uploaded
     if image:
-        img_abs_path = os.path.abspath(img_rel_path)
-        os.makedirs(os.path.dirname(img_abs_path), exist_ok=True)
+        img_abs_path = (PERSIST_ROOT / img_rel_path).resolve()
+        os.makedirs(img_abs_path.parent, exist_ok=True)
         image.save(img_abs_path)
 
     # Save Grad-CAM if Doctor and mode uses image
     if cam_image and role == "Doctor" and mode in ["image", "multimodal"]:
         cam_rel_path = f"app/demo/exports/{role.lower()}/gradcam/gradcam_{pred_text}_{timestamp}.png"
-        cam_abs_path = os.path.abspath(cam_rel_path)
-        os.makedirs(os.path.dirname(cam_abs_path), exist_ok=True)
+        cam_abs_path = (PERSIST_ROOT / cam_rel_path).resolve()
+        os.makedirs(cam_abs_path.parent, exist_ok=True)
         cam_image.save(cam_abs_path)
         grad_cam_path = cam_rel_path
 
     # Save token attention if Doctor and mode uses text
     if token_attn and role == "Doctor" and mode in ["text", "multimodal"]:
         attn_rel_path = f"app/demo/exports/{role.lower()}/tokenattention/token_attn_{pred_text}_{timestamp}.txt"
-        attn_abs_path = os.path.abspath(attn_rel_path)
-        os.makedirs(os.path.dirname(attn_abs_path), exist_ok=True)
+        attn_abs_path = (PERSIST_ROOT / attn_rel_path).resolve()
+        os.makedirs(attn_abs_path.parent, exist_ok=True)
         with open(attn_abs_path, "w") as f:
             f.write(f"Normalization Mode: {normalize_mode}\n")
             f.write(f"Use Rollout: {use_rollout}\n")
@@ -324,8 +325,8 @@ def export_csv(filename, role):
     elif not filename.endswith(".csv"):
         filename += ".csv"
 
-    csv_path = os.path.abspath(os.path.join(f"app/demo/exports/{role.lower()}", filename))
-    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+    csv_path = (PERSIST_ROOT / f"app/demo/exports/{role.lower()}/{filename}").resolve()
+    os.makedirs(csv_path.parent, exist_ok=True)
 
     df = pd.DataFrame(log)
     if role == "Doctor":
@@ -342,8 +343,8 @@ def export_csv(filename, role):
     df.to_csv(csv_path, index=False)
 
     return (
-        csv_path,  # path string -> goes into csv_output (gr.File)
-        csv_path,  # same path string again -> resused for blink_box_effect()
+        str(csv_path),  # path string -> goes into csv_output (gr.File)
+        str(csv_path),  # same path string again -> resused for blink_box_effect()
         gr.update(value=f"✅ Exported to: {csv_path}", visible=True)  # status string -> goes into export_status_box
     )
 
@@ -357,12 +358,17 @@ def safe_delete_dir(path):
 
 
 def clear_logs(role):
+
+    def _resolve_log_path(path_str: str) -> Path:
+        p = Path(path_str)
+        return p if p.is_absolute() else (PERSIST_ROOT / p)
+
     # Step 1: Delete logged image files
     log = prediction_log_doctor if role == "Doctor" else prediction_log_user
     for entry in log:
         # Delete X-ray image if exists and not "N/A"
         if entry["image_path"] != "N/A":
-            image_file_path = ROOT_DIR / Path(entry["image_path"])
+            image_file_path = _resolve_log_path(entry["image_path"])
             if image_file_path.exists():
                 try:
                     image_file_path.unlink()
@@ -371,7 +377,7 @@ def clear_logs(role):
 
         # Delete Grad-CAM
         if role == "Doctor" and entry.get("grad_cam_path") not in [None, "N/A"]:
-            grad_path = ROOT_DIR / Path(entry["grad_cam_path"])
+            grad_path = _resolve_log_path(entry.get("grad_cam_path", "N/A"))
             if grad_path.exists():
                 try:
                     grad_path.unlink()
@@ -380,7 +386,7 @@ def clear_logs(role):
 
         # Delete token attention
         if role == "Doctor" and entry.get("token_attention_path") not in [None, "N/A"]:
-            attn_path = ROOT_DIR / Path(entry["token_attention_path"])
+            attn_path = _resolve_log_path(entry.get("token_attention_path", "N/A"))
             if attn_path.exists():
                 try:
                     attn_path.unlink()
@@ -389,13 +395,13 @@ def clear_logs(role):
 
     # Step 2: Delete folders safely
     if role == "Doctor":
-        safe_delete_dir(ROOT_DIR / "app/demo/uploads")
-        safe_delete_dir(ROOT_DIR / "app/demo/exports/doctor/gradcam")
-        safe_delete_dir(ROOT_DIR / "app/demo/exports/doctor/tokenattention")
-        safe_delete_dir(ROOT_DIR / "app/demo/exports/doctor")
+        safe_delete_dir(PERSIST_ROOT / "app/demo/uploads")
+        safe_delete_dir(PERSIST_ROOT / "app/demo/exports/doctor/gradcam")
+        safe_delete_dir(PERSIST_ROOT / "app/demo/exports/doctor/tokenattention")
+        safe_delete_dir(PERSIST_ROOT / "app/demo/exports/doctor")
     else:
-        safe_delete_dir(ROOT_DIR / "app/demo/exports/user")
-        safe_delete_dir(ROOT_DIR / "app/demo/uploads")
+        safe_delete_dir(PERSIST_ROOT / "app/demo/exports/user")
+        safe_delete_dir(PERSIST_ROOT / "app/demo/uploads")
 
     # Step 3: Clear in-memory logs
     prediction_log_doctor.clear() if role == "Doctor" else prediction_log_user.clear()
