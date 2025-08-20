@@ -1,4 +1,15 @@
-# 🏥 MediLLM: AI-Powered Clinical Triage Assistant
+---
+title: MediLLM
+emoji: 🩺
+colorFrom: indigo
+colorTo: purple
+sdk: gradio
+app_file: app/demo/demo.py
+pinned: true
+---
+
+
+## 🏥 MediLLM: AI-Powered Clinical Triage Assistant
 
 🚀 A multimodal LLM-based system that predicts clinical triage levels from EMRs and chest X-rays.
 
@@ -198,3 +209,4 @@ Including Following Visualizations from my hyperparameter tuning runs
 </details>
 
 ## 🚀 Try It Locally
+
