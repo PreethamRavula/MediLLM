@@ -1,3 +1,4 @@
+import os
 import sys
 import torch
 import yaml
@@ -5,6 +6,7 @@ import numpy as np
 from pathlib import Path
 from transformers import AutoTokenizer
 from torchvision import transforms
+from huggingface_hub import hf_hub_download
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(ROOT_DIR))
@@ -12,10 +14,42 @@ sys.path.append(str(ROOT_DIR))
 from src.multimodal_model import MediLLMModel
 from app.utils.gradcam_utils import register_hooks, generate_gradcam
 
-
+# --------------------
+# Runtime / Hub config
+# --------------------
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Label map
+# Map modes -> filenames in  HF model repo
+HF_MODEL_REPO = os.getenv("HF_MODEL_REPO", "Preetham22/medi-llm-weights")
+HF_WEIGHTS_REV = os.getenv("HF_WEIGHTS_REV", None)  # optional (commit/tag/branch)
+FILENAMES = {
+    "text": "medi_llm_state_dict_text.pth",
+    "image": "medi_llm_state_dict_image.pth",
+    "multimodal": "medi_llm_state_dict_multimodal.pth"
+}
+
+
+def resolve_weights_path(mode: str) -> str:
+    """Download (or reuse cached)  weights for the given mode from HF Hub."""
+    if mode not in FILENAMES:
+        raise ValueError(f"Unknown mode '{mode}'. Expected one of {list(FILENAMES)}.")
+    filename = FILENAMES[mode]
+    try:
+        return hf_hub_download(
+            repo_id=HF_MODEL_REPO,
+            filename=filename,
+            revision=HF_WEIGHTS_REV  # can be None
+        )
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to fetch weights '{filename}' from repo '{HF_MODEL_REPO}'."
+            f"Set HF_MODEL_REPO or check filenames. Original error: {e}"
+        )
+
+
+# ----------------------
+# Labels / preprocessing
+# ----------------------
 inv_map = {0: "low", 1: "medium", 2: "high"}
 
 # Tokenizer and image transform
@@ -27,22 +61,63 @@ image_transform = transforms.Compose([
 ])
 
 
-def load_model(mode, model_path, config_path=str(Path("config/config.yaml").resolve())):
-    with open(config_path, "r") as f:
-        config = yaml.safe_load(f)[mode]
+# ----------------------
+# Model load
+# ----------------------
+def _safe_torch_load(path: str, map_location: torch.device):
+    """
+    Prefer weights_only=True (newer Pytorch), but fall back if not supported.
+    """
+    try:
+        return torch.load(path, map_location=map_location, weights_only=True)  # PyTorch >= 2.2/2.3
+    except TypeError:
+        return torch.load(path, map_location=map_location)
 
+
+def load_model(mode: str, config_path: str = str(Path("config/config.yaml").resolve())):
+    """
+    Load MediLLMModel for the given mode and populate weights from HF Hub.
+    Expects config/config.yaml with keys per mode (dropout, hidden_dim).
+    """
+    with open(config_path, "r") as f:
+        cfg_all = yaml.safe_load(f)
+    if mode not in cfg_all:
+        raise KeyError(f"Mode '{mode}' not found in {config_path}. Keys: {list(cfg_all.keys())}")
+    config = cfg_all[mode]
+
+    # Build model
     model = MediLLMModel(
         mode=mode,
         dropout=config["dropout"],
         hidden_dim=config["hidden_dim"]
     )
-    state = torch.load(model_path, map_location=DEVICE)
-    model.load_state_dict(state)
+
+    # Download weights & load
+    weights_path = resolve_weights_path(mode)
+    state = _safe_torch_load(weights_path, map_location=DEVICE)
+
+    # Sometimes checkpoints save as {'state_dict': ...}
+    if isinstance(state, dict) and "state_dict" in state:
+        state = state["state_dict"]
+
+    try:
+        model.load_state_dict(state)  # strict by default
+    except RuntimeError as e:
+        # allow non-strict if minor mismatches (buffer names)
+        try:
+            model.load_state_dict(state, strict=False)
+            print(f"⚠️ Loaded with strict=False due to: {e}")
+        except Exception:
+            raise
+
     model.to(DEVICE)
     model.eval()
     return model
 
 
+# -----------------------
+# Attention rollout utils
+# -----------------------
 def attention_rollout(attentions, last_k=4, residual_alpha=0.5):
     """
     attentions_tuple: tuple/list of layer attentions; each is (B,H,S,S)
@@ -139,6 +214,9 @@ def _normalize_for_display_wordlevel(attn_scores, normalize_mode="visual", tempe
         return attn_array0, labels
 
 
+# ------------------
+# Prediction
+# ------------------
 def predict(
     model,
     mode,

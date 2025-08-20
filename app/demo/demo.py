@@ -70,7 +70,7 @@ def classify(role, mode, normalize_mode, emr_text, image, use_rollout):
 
     # Model caching
     if mode not in model_cache:
-        model_cache[mode] = load_model(mode, MODEL_PATHS[mode])
+        model_cache[mode] = load_model(mode)
     model = model_cache[mode]
 
     # Run prediction
@@ -529,301 +529,306 @@ def reset_ui():
     )
 
 
-# --- Gradio UI ---
-style_path = Path(__file__).resolve().parent / "style.css"
-with open(style_path, "r") as f:
-    custom_css = f.read()
+def build_ui():
+    # Load CSS safely (don't crash if file is missing on remote)
+    style_path = Path(__file__).resolve().parent / "style.css"
+    custom_css = style_path.read_text(encoding="utf-8") if style_path.exists() else ""
 
-with gr.Blocks(css=custom_css) as demo:
-    # Centered title and subtitle
-    gr.Markdown("<h2 class='centered'>🩺 Medi-LLM: Clinical Triage Assistant 🩻</h2>")
-    gr.Markdown("<p class='centered'>Upload a chest X-ray and/or enter EMR text to get a triage level prediction.</p>")
-    gr.HTML(
-        """
-        <div class='welcome-banner' style="background-color: #24283b; border-left: 4px solid #7aa2f7; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
-        <h3 style="margin-top: 0; color: #c0caf5;">👋 Welcome to Medi-LLM</h3>
-        <p style="color: #a9b1d6; line-height: 1.6;">
-            This AI assistant helps triage patients using <strong>EMR text</strong> and <strong>chest X-rays</strong>.<br>
-            📝 Enter EMR notes, 📷 upload a chest X-ray, or use both for a multimodal diagnosis.<br>
-            👩‍⚕️ Select <strong>Doctor</strong> mode to view insights like Grad-CAM heatmaps and token-level attention.<br>
-            💾 Save your results for later by exporting them to a CSV file.
-        </p>
-        </div>
-        """
-    )
-
-    # Hidden State
-    role_state = gr.State(value="User")
-    mode_state = gr.State(value=DEFAULT_MODE)
-    rollout_state = gr.State(value=False)
-    normaliza_mode_state = gr.State(value="visual")
-    inference_done = gr.State(value=False)
-
-    # Role and Mode selection
-    with gr.Row(equal_height=True):
-        with gr.Column():
-            role = gr.Radio(["User", "Doctor"], value="User", label="Select Role", info="Doctors see insights like Grad-CAM and token attention", elem_id="role_selector")
-            mode = gr.Radio(["text", "image", "multimodal"], value=DEFAULT_MODE, label="Select Input Mode", info="Choose Diagnosis input type", elem_id="mode_selector")
-            with gr.Column(visible=False) as normalize_mode_column:
-                normalize_mode = gr.Radio(
-                    ["visual", "probabilistic"],
-                    value="visual",
-                    label="Attention Normalization",
-                    info="Softmax sums to 1 (probabilistic). Visual uses gamma-boosted scaling for color clarity."
-                )
-                use_rollout = gr.Checkbox(
-                    label="Use attention rollout (CLS -> inputs)",
-                    value=False,
-                    info="Includes residuals and multiplies attention across layers. Slower but often more faithful."
-                )
-
-    normalize_mode.change(
-        fn=lambda val: val,
-        inputs=[normalize_mode],
-        outputs=[normaliza_mode_state]
-    )
-
-    use_rollout.change(
-        fn=lambda v: v,
-        inputs=[use_rollout],
-        outputs=[rollout_state]
-    )
-
-    # Input: EMR text and/or image
-    with gr.Row():
-        with gr.Column(scale=3, elem_id="text_col") as text_col:
-            emr_text, image, max_file_note = render_inputs(DEFAULT_MODE)
-
-    # Submit button
-    with gr.Row():
-        submit_btn = gr.Button(
-            "🔍 Run Inference",
-            elem_id="inference_btn"
-        )
-        reset_btn = gr.Button(
-            "↩️ Reset",
-            elem_id="reset_btn"
+    with gr.Blocks(css=custom_css) as demo:
+        # ----- Header -----
+        gr.Markdown("<h2 class='centered'>🩺 Medi-LLM: Clinical Triage Assistant 🩻</h2>")
+        gr.Markdown("<p class='centered'>Upload a chest X-ray and/or enter EMR text to get a triage level prediction.</p>")
+        gr.HTML(
+            """
+            <div class='welcome-banner' style="background-color: #24283b; border-left: 4px solid #7aa2f7; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+             <h3 style="margin-top: 0; color: #c0caf5;">👋 Welcome to Medi-LLM</h3>
+             <p style="color: #a9b1d6; line-height: 1.6;">
+               This AI assistant helps triage patients using <strong>EMR text</strong> and <strong>chest X-rays</strong>.<br>
+               📝 Enter EMR notes, 📷 upload a chest X-ray, or use both for a multimodal diagnosis.<br>
+               👩‍⚕️ Select <strong>Doctor</strong> mode to view insights like Grad-CAM heatmaps and token-level attention.<br>
+               💾 Save your results for later by exporting them to a CSV file.
+             </p>
+            </div>
+            """
         )
 
-    # Outputs
-    with gr.Column(elem_classes=["output-box"]):
-        result_box = gr.Textbox(label="🧪 Triage Prediction", interactive=False)
-        confidence_label = gr.Label(label="📊 Confidence", visible=False)
-        prediction_count_box = gr.Textbox(value="Predictions: 0", interactive=False, label="🧮 Count", elem_id="prediction_count_box")
-        insights_tab = gr.Tabs(visible=False)
-        class_probs_json = gr.JSON(label="🔍 Class Probabilities", visible=True, elem_classes=["json-box"])
-        with insights_tab:
-            with gr.Tab("📷 Grad-CAM"):
-                gradcam_img = gr.Image(visible=False, elem_classes=["gr-image-box"])
-            with gr.Tab("🔬 Token Attention"):
-                token_attention = gr.HighlightedText(
-                    visible=False,
-                    show_legend=False,
-                    color_map={
-                        "0.0": "#7aa2f7",   # blue
-                        "0.25": "#80deea",  # cyan
-                        "0.5": "#fbc02d",   # yellow
-                        "0.75": "#ff8a65",  # orange
-                        "1.0": "#f7768e",   # red
-                    },
-                    elem_classes=["token-attn-box"]
-                )
-                top5_html = gr.HTML(value="", visible=False)
+        # ----- Hidden State -----
+        role_state = gr.State(value="User")
+        mode_state = gr.State(value=DEFAULT_MODE)
+        rollout_state = gr.State(value=False)
+        normaliza_mode_state = gr.State(value="visual")
+        inference_done = gr.State(value=False)
 
-                inject_tooltips()
+        # ----- Role and Mode selection -----
+        with gr.Row(equal_height=True):
+            with gr.Column():
+                role = gr.Radio(["User", "Doctor"], value="User", label="Select Role", info="Doctors see insights like Grad-CAM and token attention", elem_id="role_selector")
+                mode = gr.Radio(["text", "image", "multimodal"], value=DEFAULT_MODE, label="Select Input Mode", info="Choose Diagnosis input type", elem_id="mode_selector")
+                with gr.Column(visible=False) as normalize_mode_column:
+                    normalize_mode = gr.Radio(
+                        ["visual", "probabilistic"],
+                        value="visual",
+                        label="Attention Normalization",
+                        info="Softmax sums to 1 (probabilistic). Visual uses gamma-boosted scaling for color clarity."
+                    )
+                    use_rollout = gr.Checkbox(
+                        label="Use attention rollout (CLS -> inputs)",
+                        value=False,
+                        info="Includes residuals and multiplies attention across layers. Slower but often more faithful."
+                    )
 
-                gr.HTML("""
-                <div class="attention-legend">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 14px; color: #c0caf5;">0.0</span>
-                        <div class="attention-gradient-bar"></div>
-                        <span style="font-size: 14px; color: #c0caf5;">1.0</span>
+        # ----- Inputs -----
+        with gr.Row():
+            with gr.Column(scale=3, elem_id="text_col"):
+                emr_text, image, max_file_note = render_inputs(DEFAULT_MODE)
+
+        # ----- Actions -----
+        with gr.Row():
+            submit_btn = gr.Button(
+                "🔍 Run Inference",
+                elem_id="inference_btn"
+            )
+            reset_btn = gr.Button(
+                "↩️ Reset",
+                elem_id="reset_btn"
+            )
+
+        # ----- Outputs -----
+        with gr.Column(elem_classes=["output-box"]):
+            result_box = gr.Textbox(label="🧪 Triage Prediction", interactive=False)
+            confidence_label = gr.Label(label="📊 Confidence", visible=False)
+            prediction_count_box = gr.Textbox(value="Predictions: 0", interactive=False, label="🧮 Count", elem_id="prediction_count_box")
+            insights_tab = gr.Tabs(visible=False)
+            class_probs_json = gr.JSON(label="🔍 Class Probabilities", visible=True, elem_classes=["json-box"])
+            with insights_tab:
+                with gr.Tab("📷 Grad-CAM"):
+                    gradcam_img = gr.Image(visible=False, elem_classes=["gr-image-box"])
+                with gr.Tab("🔬 Token Attention"):
+                    token_attention = gr.HighlightedText(
+                        visible=False,
+                        show_legend=False,
+                        color_map={
+                            "0.0": "#7aa2f7",   # blue
+                            "0.25": "#80deea",  # cyan
+                            "0.5": "#fbc02d",   # yellow
+                            "0.75": "#ff8a65",  # orange
+                            "1.0": "#f7768e",   # red
+                        },
+                        elem_classes=["token-attn-box"]
+                    )
+                    top5_html = gr.HTML(value="", visible=False)
+
+                    inject_tooltips()
+
+                    gr.HTML("""
+                    <div class="attention-legend">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 14px; color: #c0caf5;">0.0</span>
+                            <div class="attention-gradient-bar"></div>
+                            <span style="font-size: 14px; color: #c0caf5;">1.0</span>
+                        </div>
                     </div>
-                </div>
-                """)
+                    """)
 
-    with gr.Row():
-        loading_msg = gr.Markdown(value="", visible=False, elem_classes=["loading-msg"])
+        with gr.Row():
+            loading_msg = gr.Markdown(value="", visible=False, elem_classes=["loading-msg"])
 
-    # Bind inference
-    submit_btn.click(
-        fn=show_loading_msg,
-        outputs=[loading_msg]
-    ).then(
-        fn=classify,
-        inputs=[role_state, mode_state, normaliza_mode_state, emr_text, image, rollout_state],
-        outputs=[
-            result_box,
-            gradcam_img,
-            token_attention,
-            top5_html,
-            confidence_label,
-            insights_tab,
-            prediction_count_box,
-            class_probs_json,
-        ]
-    ).then(
-        fn=lambda: gr.update(value="", visible=False),
-        outputs=[loading_msg]
-    ).then(
-        fn=lambda: True,
-        outputs=[inference_done]
-    )
+        # ----- Inference Wiring -----
+        submit_btn.click(
+            fn=show_loading_msg,
+            outputs=[loading_msg]
+        ).then(
+            fn=classify,
+            inputs=[role_state, mode_state, normaliza_mode_state, emr_text, image, rollout_state],
+            outputs=[
+                result_box,
+                gradcam_img,
+                token_attention,
+                top5_html,
+                confidence_label,
+                insights_tab,
+                prediction_count_box,
+                class_probs_json,
+            ]
+        ).then(
+            fn=lambda: gr.update(value="", visible=False),
+            outputs=[loading_msg]
+        ).then(
+            fn=lambda: True,
+            outputs=[inference_done]
+        )
 
-    # Input Updates
-    mode.change(
-        fn=lambda m: (*render_inputs(m), m),
-        inputs=[mode],
-        outputs=[emr_text, image, max_file_note, mode_state]
-    )
+        # ----- Role/Mode/Param Change Wiring -----
+        role.change(
+            fn=update_role_state,
+            inputs=[role],
+            outputs=[role_state, normalize_mode_column, insights_tab, token_attention, gradcam_img, use_rollout, top5_html]
+        )
 
-    role.change(
-        fn=update_role_state,
-        inputs=[role],
-        outputs=[role_state, normalize_mode_column, insights_tab, token_attention, gradcam_img, use_rollout, top5_html]
-    )
+        # Input Updates
+        mode.change(
+            fn=lambda m: (*render_inputs(m), m),
+            inputs=[mode],
+            outputs=[emr_text, image, max_file_note, mode_state]
+        )
 
-    normalize_mode.change(
-        fn=rerun_if_done,
-        inputs=[inference_done, role_state, mode_state, normalize_mode, emr_text, image, rollout_state],
-        outputs=[
-            result_box,
-            gradcam_img,
-            token_attention,
-            top5_html,
-            confidence_label,
-            insights_tab,
-            prediction_count_box,
-            class_probs_json,
-        ]
-    )
+        normalize_mode.change(
+            fn=lambda val: val,
+            inputs=[normalize_mode],
+            outputs=[normaliza_mode_state]
+        )
 
-    use_rollout.change(
-        fn=rerun_if_done,
-        inputs=[inference_done, role_state, mode_state, normalize_mode, emr_text, image, rollout_state],
-        outputs=[
-            result_box,
-            gradcam_img,
-            token_attention,
-            top5_html,
-            confidence_label,
-            insights_tab,
-            prediction_count_box,
-            class_probs_json
-        ]
-    )
+        use_rollout.change(
+            fn=lambda v: v,
+            inputs=[use_rollout],
+            outputs=[rollout_state]
+        )
 
-    # CSV Export UI
-    gr.Markdown("### 📁 Export Prediction Log")
+        normalize_mode.change(
+            fn=rerun_if_done,
+            inputs=[inference_done, role_state, mode_state, normalize_mode, emr_text, image, rollout_state],
+            outputs=[
+                result_box,
+                gradcam_img,
+                token_attention,
+                top5_html,
+                confidence_label,
+                insights_tab,
+                prediction_count_box,
+                class_probs_json,
+            ]
+        )
 
-    with gr.Row(equal_height=True):
-        with gr.Column(scale=3):
-            filename_input = gr.Textbox(
-                label="CSV filename (optional)",
-                placeholder="e.g., triage_results.csv",
-                info="Set filename as needed or leave blank for auto-naming",
-                elem_id="csv_filename"
-            )
+        use_rollout.change(
+            fn=rerun_if_done,
+            inputs=[inference_done, role_state, mode_state, normalize_mode, emr_text, image, rollout_state],
+            outputs=[
+                result_box,
+                gradcam_img,
+                token_attention,
+                top5_html,
+                confidence_label,
+                insights_tab,
+                prediction_count_box,
+                class_probs_json
+            ]
+        )
 
-            export_status_box = gr.Textbox(
-                value="",
-                visible=False,
-                interactive=False,
-                label="",
-                elem_id="export_status"
-            )
+        # ----- CSV Export & Log Controls -----
+        gr.Markdown("### 📁 Export Prediction Log")
 
-        with gr.Column(scale=4):
-            gr.Markdown(
-                "📑 **Summary**\n\nDownload your triage results for clinical review or research.",
-                elem_classes="centered"
-            )
-            with gr.Row():
-                with gr.Column(scale=1, min_width=200):
-                    download_btn = gr.Button("💾 Export CSV", elem_id="export_button")
-                with gr.Column(scale=1, min_width=200):
-                    clear_btn = gr.Button("🗑️ Clear Logs", elem_id="clear_button")
-            confirm_clear_btn = gr.Button("✅ Confirm Clear", visible=False, elem_id="confirm_button")
-            confirm_box = gr.Textbox(label="Status", interactive=False, visible=False, elem_id="confirm_box")
+        with gr.Row(equal_height=True):
+            with gr.Column(scale=3):
+                filename_input = gr.Textbox(
+                    label="CSV filename (optional)",
+                    placeholder="e.g., triage_results.csv",
+                    info="Set filename as needed or leave blank for auto-naming",
+                    elem_id="csv_filename"
+                )
 
-        with gr.Column(scale=3):
-            csv_output = gr.File(label="📂 Download Link", elem_id="download_box")
+                export_status_box = gr.Textbox(
+                    value="",
+                    visible=False,
+                    interactive=False,
+                    label="",
+                    elem_id="export_status"
+                )
 
-    download_btn.click(
-        fn=export_csv,
-        inputs=[filename_input, role_state],
-        outputs=[
-            csv_output,
-            csv_output,
-            export_status_box
-        ]
-    ).then(
-        fn=blink_box_effect,
-        inputs=[csv_output],
-        outputs=[csv_output]
-    ).then(
-        fn=disable_filename_input,
-        outputs=[filename_input]
-    )
+            with gr.Column(scale=4):
+                gr.Markdown(
+                    "📑 **Summary**\n\nDownload your triage results for clinical review or research.",
+                    elem_classes="centered"
+                )
+                with gr.Row():
+                    with gr.Column(scale=1, min_width=200):
+                        download_btn = gr.Button("💾 Export CSV", elem_id="export_button")
+                    with gr.Column(scale=1, min_width=200):
+                        clear_btn = gr.Button("🗑️ Clear Logs", elem_id="clear_button")
+                confirm_clear_btn = gr.Button("✅ Confirm Clear", visible=False, elem_id="confirm_button")
+                confirm_box = gr.Textbox(label="Status", interactive=False, visible=False, elem_id="confirm_box")
 
-    clear_btn.click(
-        fn=lambda: (
-            confirm_clear(),
-            gr.Button(visible=True),
-        ),
-        outputs=[confirm_box, confirm_clear_btn]
-    )
+            with gr.Column(scale=3):
+                csv_output = gr.File(label="📂 Download Link", elem_id="download_box")
 
-    confirm_clear_btn.click(
-        fn=clear_confirmed,
-        inputs=[role_state],
-        outputs=[
-            prediction_count_box,  # reset prediction count
-            confirm_box,           # show success message
-            csv_output,            # hide CSV output file
-            filename_input         # re-enable input box
-        ]
-    ).then(
-        fn=lambda: gr.update(visible=False),  # Hide confirm button
-        outputs=[confirm_clear_btn]
-    ).then(
-        fn=reset_confirm_box,
-        outputs=[confirm_box]
-    )
+        download_btn.click(
+            fn=export_csv,
+            inputs=[filename_input, role_state],
+            outputs=[
+                csv_output,
+                csv_output,
+                export_status_box
+            ]
+        ).then(
+            fn=blink_box_effect,
+            inputs=[csv_output],
+            outputs=[csv_output]
+        ).then(
+            fn=disable_filename_input,
+            outputs=[filename_input]
+        )
 
-    # Reset UI
-    reset_btn.click(
-        fn=reset_ui,
-        outputs=[
-            emr_text,               # 1
-            image,                  # 2
-            max_file_note,          # 3
-            result_box,             # 4
-            gradcam_img,            # 5
-            token_attention,        # 6
-            top5_html,              # 7
-            confidence_label,       # 8
-            insights_tab,           # 9
-            class_probs_json,       # 10
-            role_state,             # 11
-            mode_state,             # 12
-            normaliza_mode_state,   # 13
-            role,                   # 14 (radio)
-            mode,                   # 15 (radio)
-            normalize_mode,         # 16 (radio)
-            normalize_mode_column,  # 17 (column visibility)
-            use_rollout,            # 18
-            rollout_state,          # 19
-            loading_msg,            # 20
-            inference_done,         # 21
-            export_status_box       # 22
-        ]
-    )
+        clear_btn.click(
+            fn=lambda: (
+                confirm_clear(),
+                gr.Button(visible=True),
+            ),
+            outputs=[confirm_box, confirm_clear_btn]
+        )
+
+        confirm_clear_btn.click(
+            fn=clear_confirmed,
+            inputs=[role_state],
+            outputs=[
+                prediction_count_box,  # reset prediction count
+                confirm_box,           # show success message
+                csv_output,            # hide CSV output file
+                filename_input         # re-enable input box
+            ]
+        ).then(
+            fn=lambda: gr.update(visible=False),  # Hide confirm button
+            outputs=[confirm_clear_btn]
+        ).then(
+            fn=reset_confirm_box,
+            outputs=[confirm_box]
+        )
+
+        # ----- Reset Wiring -----
+        reset_btn.click(
+            fn=reset_ui,
+            outputs=[
+                emr_text,               # 1
+                image,                  # 2
+                max_file_note,          # 3
+                result_box,             # 4
+                gradcam_img,            # 5
+                token_attention,        # 6
+                top5_html,              # 7
+                confidence_label,       # 8
+                insights_tab,           # 9
+                class_probs_json,       # 10
+                role_state,             # 11
+                mode_state,             # 12
+                normaliza_mode_state,   # 13
+                role,                   # 14 (radio)
+                mode,                   # 15 (radio)
+                normalize_mode,         # 16 (radio)
+                normalize_mode_column,  # 17 (column visibility)
+                use_rollout,            # 18
+                rollout_state,          # 19
+                loading_msg,            # 20
+                inference_done,         # 21
+                export_status_box       # 22
+            ]
+        )
+    return demo
+
+
+# Expose for Spaces & imports
+demo = build_ui()
 
 if __name__ == "__main__":
-    for mode, path in MODEL_PATHS.items():
-        if not os.path.exists(path):
-            print(f"❌ Missing model for mode {mode}: {path}")
-            print("Please download or train your models before launching the demo.")
-            exit(1)
-    demo.launch()
+    demo.launch(
+        server_name=os.getenv("GRADIO_SERVER_NAME", "127.0.0.1"),
+        server_port=int(os.getenv("GRADIO_SERVER_PORT", "7860")),
+        show_error=True,
+    )
