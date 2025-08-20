@@ -7,6 +7,8 @@ torchvision>=0.17,<0.19
 gradio>=3.45.2,<3.47
 huggingface_hub>=0.24,<0.26
 safetensors>=0.4.3
+transformers>=4.41,<4.46
+tokenizers>=0.15,<0.20
 
 # Image / utils
 opencv-python-headless>=4.8
