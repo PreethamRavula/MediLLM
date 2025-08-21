@@ -1,0 +1,28 @@
+# docker-compose.yml
+services:
+  medi-llm:
+    build: .
+    image: medi-llm:cpu
+    container_name: medi-llm
+    ports:
+      - "${PORT:-7860}:${PORT:-7860}"
+    environment:
+      HF_MODEL_REPO: "${HF_MODEL_REPO:-}" # ok if rempty
+      HUGGINGFACE_HUB_TOKEN: "${HUGGINGFACE_HUB_TOKEN-}"  # ok if empty
+      GRADIO_SERVER_NAME: "0.0.0.0"
+      GRADIO_SERVER_PORT: "${PORT:-7860}"
+      MPLCONFIGDIR: "/tmp/mpl"
+      HF_HOME: "/root/.cache/huggingface"    # inside container
+    volumes:
+      # Persist CSV/exports to your host (appears in ./exports)
+      - ./exports:/data/app/demo/exports
+      # Cache models between runs for speed
+      - ./hf-cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:${PORT:-7860}"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    # Dev convenience: uncomment to use your live code without rebuilds
+    # volumes:
+    #   - .:/app
