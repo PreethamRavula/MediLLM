@@ -6,7 +6,6 @@ torchvision>=0.17,<0.19
 # UI + model fetch
 gradio==5.43.1
 gradio_client>1.3.0
-huggingface_hub>=0.24,<0.26
 safetensors>=0.4.3
 
 # NLP + Vision backbones 
