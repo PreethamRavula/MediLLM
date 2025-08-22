@@ -21,7 +21,8 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Map modes -> filenames in  HF model repo
 HF_MODEL_REPO = os.getenv("HF_MODEL_REPO", "Preetham22/medi-llm-weights")
-HF_WEIGHTS_REV = os.getenv("HF_WEIGHTS_REV")  # optional (commit/tag/branch), can be None
+_raw_rev = os.getenv("HF_WEIGHTS_REV", None)
+HF_WEIGHTS_REV = _raw_rev if (_raw_rev and _raw_rev.strip()) else None  # optional (commit/tag/branch), can be None
 
 FILENAMES = {
     "text": "medi_llm_state_dict_text.pth",
@@ -65,8 +66,10 @@ def resolve_weights_path(mode: str) -> str:
             revision=HF_WEIGHTS_REV,         # can be None -> default branch
             repo_type="model",               # change to "dataset" if needed
             local_dir=str(ROOT_DIR),         # Keep a copy in repo dir
-            local_dir_use_symlinks=False,   # avoid symlink weirdness
+            local_dir_use_symlinks=False,    # avoid symlink weirdness
+            token=None,                      # For public repo
         )
+
     except Exception as e:
         raise RuntimeError(
             f"Failed to fetch weights '{filename}' from repo '{HF_MODEL_REPO}'. "
