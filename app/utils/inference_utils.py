@@ -21,12 +21,22 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Map modes -> filenames in  HF model repo
 HF_MODEL_REPO = os.getenv("HF_MODEL_REPO", "Preetham22/medi-llm-weights")
-HF_WEIGHTS_REV = os.getenv("HF_WEIGHTS_REV", None)  # optional (commit/tag/branch)
+HF_WEIGHTS_REV = os.getenv("HF_WEIGHTS_REV")  # optional (commit/tag/branch), can be None
+
 FILENAMES = {
     "text": "medi_llm_state_dict_text.pth",
     "image": "medi_llm_state_dict_image.pth",
-    "multimodal": "medi_llm_state_dict_multimodal.pth"
+    "multimodal": "medi_llm_state_dict_multimodal.pth",
 }
+
+
+def have_internet():
+    try:
+        import socket
+        socket.create_connection(("huggingface.co", 443), timeout=3).close()
+        return True
+    except Exception:
+        return False
 
 
 def resolve_weights_path(mode: str) -> str:
@@ -34,16 +44,34 @@ def resolve_weights_path(mode: str) -> str:
     if mode not in FILENAMES:
         raise ValueError(f"Unknown mode '{mode}'. Expected one of {list(FILENAMES)}.")
     filename = FILENAMES[mode]
+
+    # 1) Prefer a file already present in Space rep
+    local_path = ROOT_DIR / filename
+    if local_path.exists():
+        return str(local_path)
+
+    # 2) If no local file and no internet, bail early
+    if not have_internet():
+        raise RuntimeError(
+            f"❌ Internet is disabled and weights are not present locally.\n"
+            f"  Upload '{filename}' to this Space or enable Network access."
+        )
+
+    # 3) Otherwise, download from Hub
     try:
         return hf_hub_download(
             repo_id=HF_MODEL_REPO,
             filename=filename,
-            revision=HF_WEIGHTS_REV  # can be None
+            revision=HF_WEIGHTS_REV,         # can be None -> default branch
+            repo_type="model",               # change to "dataset" if needed
+            local_dir=str(ROOT_DIR),         # Keep a copy in repo dir
+            local_dir_use_symlinks=False,   # avoid symlink weirdness
         )
     except Exception as e:
         raise RuntimeError(
-            f"Failed to fetch weights '{filename}' from repo '{HF_MODEL_REPO}'."
-            f"Set HF_MODEL_REPO or check filenames. Original error: {e}"
+            f"Failed to fetch weights '{filename}' from repo '{HF_MODEL_REPO}'. "
+            f"Either enable Network access for this Space or commit the file locally. "
+            f"Original error: {e}"
         )
 
 
