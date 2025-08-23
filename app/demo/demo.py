@@ -461,16 +461,18 @@ def update_role_state(r):
 
 
 def rerun_if_done(ran, role, mode, normalize_mode, emr_text, image, use_rollout):
-    if not ran or role != "Doctor":
+    # If inference hasn't run yet, or we're not in Doctor mode, Do nothing.
+    # Returning gr.update() for each output preserves current values & visibility
+    if (not ran) or (role != "Doctor"):
         return (
-            gr.Textbox(visible=False),
-            gr.Image(visible=False),
-            gr.HighlightedText(visible=False),
-            gr.HTML(visible=False),
-            gr.Label(visible=False),
-            gr.Tabs(visible=False),
-            gr.Textbox(value="", interactive=False),
-            gr.JSON(value={}, visible=True)
+            gr.update(),  # result_box
+            gr.update(),  # gradcam_img
+            gr.update(),  # token_attention
+            gr.update(),  # top5_html
+            gr.update(),  # confidence_label
+            gr.update(),  # insights_tab
+            gr.update(),  # prediction_count_box
+            gr.update(),  # class_probs_json
         )
     # Let classify() run if already inferred once
     return classify(role, mode, normalize_mode, emr_text, image, use_rollout)
@@ -531,7 +533,8 @@ def reset_ui():
         # Loading + inference state
         gr.update(value="", visible=False),    # loading_msg
         False,                                 # inference_done
-        gr.update(value="", visible=False)     # export_status_box
+        gr.update(value="", visible=False),    # export_status_box
+        gr.update(value=None, visible=True)    # csv_output
     )
 
 
@@ -681,13 +684,15 @@ def build_ui():
         normalize_mode.change(
             fn=lambda val: val,
             inputs=[normalize_mode],
-            outputs=[normaliza_mode_state]
+            outputs=[normaliza_mode_state],
+            queue=False,
         )
 
         use_rollout.change(
             fn=lambda v: v,
             inputs=[use_rollout],
-            outputs=[rollout_state]
+            outputs=[rollout_state],
+            queue=False,
         )
 
         normalize_mode.change(
@@ -702,7 +707,8 @@ def build_ui():
                 insights_tab,
                 prediction_count_box,
                 class_probs_json,
-            ]
+            ],
+            queue=False,
         )
 
         use_rollout.change(
@@ -717,7 +723,8 @@ def build_ui():
                 insights_tab,
                 prediction_count_box,
                 class_probs_json
-            ]
+            ],
+            queue=False,
         )
 
         # ----- CSV Export & Log Controls -----
@@ -823,7 +830,8 @@ def build_ui():
                 rollout_state,          # 19
                 loading_msg,            # 20
                 inference_done,         # 21
-                export_status_box       # 22
+                export_status_box,      # 22
+                csv_output              # 23
             ]
         )
     return demo
