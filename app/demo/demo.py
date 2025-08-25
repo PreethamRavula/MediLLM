@@ -2,10 +2,12 @@ import os
 import sys
 import time
 import shutil
+import logging
 import gradio as gr
 import pandas as pd
 from PIL import Image
 from pathlib import Path
+from threading import Lock
 
 # Adds root directory to sys.path
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
@@ -13,18 +15,94 @@ sys.path.append(str(ROOT_DIR))
 PERSIST_ROOT = Path("/data") if Path("/data").exists() else ROOT_DIR
 
 from app.utils.inference_utils import load_model, predict
+from concurrent.futures import ThreadPoolExecutor
+
+# if available, grab weight resolver to prefetch files
+try:
+    from app.utils.inference_utils import resolve_weights_path
+except Exception:
+    resolve_weights_path = None
 
 # Initial default values
 DEFAULT_MODE = "multimodal"
-MODEL_PATHS = {
-    "text": ROOT_DIR / "medi_llm_state_dict_text.pth",
-    "image": ROOT_DIR / "medi_llm_state_dict_image.pth",
-    "multimodal": ROOT_DIR / "medi_llm_state_dict_multimodal.pth"
-}
-
 model_cache = {}
 prediction_log_user = []
 prediction_log_doctor = []
+MODEL_MODES = ["text", "image", "multimodal"]
+MODEL_LOCKS = {m: Lock() for m in MODEL_MODES}
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=LOG_LEVEL,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s"
+)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("gradio").setLevel(logging.WARNING)
+log = logging.getLogger("medi_llm")
+
+
+def get_model(mode: str):
+    # Lock per mode to avoid double-loads
+    lock = MODEL_LOCKS.get(mode)
+    if lock is None:
+        # fallback
+        if mode not in model_cache:
+            model_cache[mode] = load_model(mode)
+        return model_cache[mode]
+
+    with lock:
+        if mode not in model_cache:
+            model_cache[mode] = load_model(mode)
+        return model_cache[mode]
+
+
+# Warm-start toggles (env-controlled)
+WARM_START = os.getenv("WARM_START", "1") == "1"
+WARM_START_MODES = [m.strip() for m in os.getenv("WARM_START_MODES", "text,image,multimodal").split(",") if m.strip()]
+WARM_START_WORKERS = max(1, int(os.getenv("WARM_START_WORKERS", "3")))
+
+
+def warm_start():
+    if not WARM_START:
+        log.info("[warm] disabled via WARM_START=0")
+        return
+    log.info("[warm] prefetching weights & models...")
+    modes_env = WARM_START_MODES or MODEL_MODES
+    modes = [m for m in modes_env if m in MODEL_MODES]
+
+    # Ensure weights exist (local-first, Hub fallback) if resolver is available
+    if resolve_weights_path is not None:
+        for m in modes:
+            try:
+                weight_path = resolve_weights_path(m)
+                log.info(f"[warm] weights ok for {m}: {weight_path}")
+            except Exception as e:
+                log.warning(f"[warm] weights skip {m}: {e}")
+
+    # Build and cache models in parallel (keeps first inference snappy)
+    def _load(mm):
+        try:
+            _ = get_model(mm)
+            log.info(f"[warm] model ready: {mm}")
+        except Exception as e:
+            log.warning(f"[warm] model failed {mm}: {e}")
+
+    with ThreadPoolExecutor(max_workers=min(len(modes), WARM_START_WORKERS)) as ex:
+        for m in modes:
+            ex.submit(_load, m)
+
+    log.info("[warm] done")
+
+
+def build_result_box(value: str = "", cls: str | None = None):
+    kwargs = dict(
+        value=value,
+        label="🧪 Triage Prediction",
+        interactive=False,
+        elem_id="result_box",
+    )
+    if cls:
+        kwargs["elem_classes"] = [cls]
+    return gr.Textbox(**kwargs)
 
 
 def classify(role, mode, normalize_mode, emr_text, image, use_rollout):
@@ -36,18 +114,23 @@ def classify(role, mode, normalize_mode, emr_text, image, use_rollout):
     show_gradcam = (role == "Doctor" and mode in ["image", "multimodal"])
     show_attention = (role == "Doctor" and mode in ["text", "multimodal"])
 
-    # ✅ Skip inference if no input is provided
-    if ((mode in ["text", "multimodal"] and (not emr_text or not emr_text.strip())) and (mode in ["image", "multimodal"] and image is None)):
+    # ✅ Skip inference if required inputs are missing for selected mode
+    no_text_needed_but_missing = (mode in ["text", "multimodal"]) and (not emr_text or not emr_text.strip())
+    no_image_needed_but_missing = (mode in ["image", "multimodal"]) and (image is None)
+    should_skip = (
+        (mode == "text" and no_text_needed_but_missing) or (mode == "image" and no_image_needed_but_missing) or (mode == "multimodal" and no_text_needed_but_missing and no_image_needed_but_missing)
+    )
+    if should_skip:
         count = len(prediction_log_doctor) if role == "Doctor" else len(prediction_log_user)
         return (
-            gr.Textbox(value="⚠️ Please enter EMR text or upload an image to run inference."),
-            gr.Image(visible=False),
-            gr.HighlightedText(visible=False),
-            gr.HTML(value="", visible=False),
-            gr.Label(visible=False),
-            gr.Tabs(visible=False),
-            gr.Textbox(value=f"Predictions: {count}", interactive=False),
-            gr.JSON(value={}, visible=True)  # JSON visible, but empty
+            build_result_box("⚠️ Please enter EMR text or upload an image to run inference.", "prediction-none"),  # result_box
+            gr.update(visible=False),                                                                              # gradcam_img
+            gr.update(visible=False),                                                                              # token_attention
+            gr.update(value="", visible=False),                                                                    # top5_html
+            gr.update(visible=False),                                                                              # confidence_label
+            gr.update(visible=False),                                                                              # insights_tab
+            f"Predictions: {count}",                                                                               # prediction_count_box
+            gr.update(value={}, visible=True)                                                                      # class_probs_json
         )
 
     # Image size guard + load
@@ -58,25 +141,23 @@ def classify(role, mode, normalize_mode, emr_text, image, use_rollout):
         if image_size > 5 * 1024 * 1024:
             count = len(prediction_log_doctor) if role == "Doctor" else len(prediction_log_user)
             return (
-                gr.Textbox(value="❌ Image exceeds 5MB size limit."),
-                gr.Image(visible=False),
-                gr.HighlightedText(visible=False),
-                gr.HTML(value="", visible=False),
-                gr.Label(visible=False),
-                gr.Tabs(visible=False),  # Hide insights tab on error
-                gr.Textbox(value=f"Predictions: {count}", interactive=False),
-                gr.JSON(value={}, visible=True)
+                build_result_box("❌ Image exceeds 5MB size limit.", "prediction-none"),
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(value="", visible=False),
+                gr.update(visible=False),
+                gr.update(visible=False),  # Hide insights tab on error
+                f"Predictions: {count}",
+                gr.update(value={}, visible=True),
             )
         image = Image.open(image).convert("RGB")
 
     # Model caching
-    if mode not in model_cache:
-        model_cache[mode] = load_model(mode)
-    model = model_cache[mode]
+    model = get_model(mode)
 
     # Run prediction
     try:
-        print("🧪 classify() passing normalize_mode:", normalize_mode, "| use_rollout:", use_rollout)
+        log.info("classify(): normalize_mode=%s | use_rollout=%s", normalize_mode, use_rollout)
         pred_text, cam_image, token_attn, confidence, probs, top5 = predict(
             model,
             mode,
@@ -88,22 +169,36 @@ def classify(role, mode, normalize_mode, emr_text, image, use_rollout):
         )
 
         top5 = top5 or []
-    except ValueError as e:
-        print(f"⚠️ Inference failed: {e}")
+    except Exception as e:
+        log.exception("Inference failed")
         count = len(prediction_log_doctor) if role == "Doctor" else len(prediction_log_user)
         return (
-            gr.Textbox(value=f"❌ {str(e)}"),
-            gr.Image(visible=False),
-            gr.HighlightedText(visible=False),
-            gr.HTML(value="", visible=False),
-            gr.Label(visible=False),
-            gr.Tabs(visible=False),
-            gr.Textbox(value=f"Predictions: {count}", interactive=False),
-            gr.JSON(value={}, visible=True)
+            build_result_box(f"❌ {str(e)}", "prediction-none"),
+            gr.update(visible=False),
+            gr.update(visible=False),
+            gr.update(value="", visible=False),
+            gr.update(visible=False),
+            gr.update(visible=False),
+            f"Predictions: {count}",
+            gr.update(value={}, visible=True)
         )
 
+    pred_norm = (str(pred_text) if pred_text is not None else "").strip().lower()
+    triage_class = {
+        "high": "prediction-high",
+        "medium": "prediction-medium",
+        "low": "prediction-low",
+    }.get(pred_norm, "prediction-low")
+
     # Class probabilities (ensure always 3)
-    flat_probs = probs[0] if isinstance(probs[0], list) else probs
+    if isinstance(probs, (list, tuple)):
+        if probs and isinstance(probs[0], (list, tuple)):
+            flat_probs = probs[0]
+        else:
+            flat_probs = list(probs)
+    else:
+        flat_probs = []
+
     if len(flat_probs) != 3:
         class_probs = {"low": 0.0, "medium": 0.0, "high": 0.0}
     else:
@@ -166,17 +261,15 @@ def classify(role, mode, normalize_mode, emr_text, image, use_rollout):
         prediction_log_user.append(log_entry)
         count = len(prediction_log_user)
 
-    glow_class = f"prediction-{pred_text.lower()}"  # 'high', 'medium', 'low'
-
     return (
-        gr.Textbox(value=pred_text, elem_classes=[glow_class]),
-        gr.Image(value=cam_image, visible=show_gradcam),
-        gr.HighlightedText(value=token_attn, visible=show_attention),
+        build_result_box(pred_text, triage_class),
+        gr.update(value=cam_image, visible=show_gradcam),
+        gr.update(value=token_attn, visible=show_attention),
         render_top5_html(top5),
-        gr.Label(value=f"{confidence:.2f}", visible=True),
-        gr.Tabs(visible=show_tabs),
-        gr.Textbox(value=f"Predictions: {count}", interactive=False),
-        gr.JSON(value=class_probs, visible=True)
+        gr.update(value=f"{confidence:.2f}", visible=True),
+        gr.update(visible=show_tabs),
+        f"Predictions: {count}",
+        gr.update(value=class_probs, visible=True)
     )
 
 
@@ -284,16 +377,6 @@ def render_top5_html(top5):
         )
 
     # color rows by normalized importance
-    max_score = max(score for _, score in top5)
-    min_score = min(score for _, score in top5)
-    rows = []
-
-    for tok, pct in top5:
-        # Normalize score 0-1
-        norm = (pct - min_score) / (max_score - min_score + 1e-9)
-        css = "top5-high" if norm > 0.66 else ("top5-medium" if norm > 0.33 else "top5-low")
-        rows.append(f"<tr class='{css}'><td>{tok}</td><td>{pct:.1f}%</td></tr>")
-
     table = (
         "<div class='top5-box' style='margin-top:10px;'>"
         "<h4 style='margin:0 0 8px; color:#e5e7eb;'>Top 5 tokens (by contribution)</h4>"
@@ -314,10 +397,13 @@ def render_top5_html(top5):
 
 
 def export_csv(filename, role):
-    log = prediction_log_doctor if role == "Doctor" else prediction_log_user
-    if not log:
-        # Return values to hide download and show warning
-        return None, gr.update(visible=False), gr.Textbox(value="⚠️ No predictions to export.", interactive=False)  # Prevent empty exports
+    records = prediction_log_doctor if role == "Doctor" else prediction_log_user
+    if not records:
+        # Hide the file component and show a warning
+        return (
+            gr.update(value=None, visible=False),                                              # csv_output
+            gr.update(value="⚠️ No predictions to export.", visible=True, interactive=False),  # export_status_box
+        )  # Prevent empty exports
 
     if not filename.strip():
         timestamp = time.strftime("%Y%m%d_%H%M%S")
@@ -328,7 +414,7 @@ def export_csv(filename, role):
     csv_path = (PERSIST_ROOT / f"app/demo/exports/{role.lower()}/{filename}").resolve()
     os.makedirs(csv_path.parent, exist_ok=True)
 
-    df = pd.DataFrame(log)
+    df = pd.DataFrame(records)
     if role == "Doctor":
         columns = [
             "mode", "normalize_mode", "use_rollout", "emr_text", "image_path",
@@ -343,9 +429,14 @@ def export_csv(filename, role):
     df.to_csv(csv_path, index=False)
 
     return (
-        str(csv_path),  # path string -> goes into csv_output (gr.File)
-        str(csv_path),  # same path string again -> resused for blink_box_effect()
-        gr.update(value=f"✅ Exported to: {csv_path}", visible=True)  # status string -> goes into export_status_box
+        gr.File(
+            value=str(csv_path),
+            label="📂 Download Link",
+            elem_id="download_box",
+            elem_classes=["download_box", "blink-csv"],
+            visible=True,
+        ),
+        gr.update(value=f"✅ Exported to: {csv_path}", visible=True),  # status string -> goes into export_status_box
     )
 
 
@@ -354,7 +445,7 @@ def safe_delete_dir(path):
         if os.path.exists(path) and os.path.isdir(path):
             shutil.rmtree(path)
     except Exception as e:
-        print(f"⚠️ Failed to delete {path}: {e}")
+        log.warning("Failed to delete %s: %s", path, e)
 
 
 def clear_logs(role):
@@ -364,8 +455,8 @@ def clear_logs(role):
         return p if p.is_absolute() else (PERSIST_ROOT / p)
 
     # Step 1: Delete logged image files
-    log = prediction_log_doctor if role == "Doctor" else prediction_log_user
-    for entry in log:
+    records = prediction_log_doctor if role == "Doctor" else prediction_log_user
+    for entry in records:
         # Delete X-ray image if exists and not "N/A"
         if entry["image_path"] != "N/A":
             image_file_path = _resolve_log_path(entry["image_path"])
@@ -373,7 +464,7 @@ def clear_logs(role):
                 try:
                     image_file_path.unlink()
                 except Exception as e:
-                    print(f"⚠️ Failed to delete image folder: {image_file_path}: {e}")
+                    log.warning("Failed to delete image file: %s: %s", image_file_path, e)
 
         # Delete Grad-CAM
         if role == "Doctor" and entry.get("grad_cam_path") not in [None, "N/A"]:
@@ -382,7 +473,7 @@ def clear_logs(role):
                 try:
                     grad_path.unlink()
                 except Exception as e:
-                    print(f"⚠️ Failed to delete Grad-CAM: {grad_path}: {e}")
+                    log.warning("Failed to delete Grad-CAM: %s: %s", grad_path, e)
 
         # Delete token attention
         if role == "Doctor" and entry.get("token_attention_path") not in [None, "N/A"]:
@@ -391,7 +482,7 @@ def clear_logs(role):
                 try:
                     attn_path.unlink()
                 except Exception as e:
-                    print(f"⚠️ Failed to delete token attention: {attn_path}: {e}")
+                    log.warning("Failed to delete token attention: %s: %s", attn_path, e)
 
     # Step 2: Delete folders safely
     if role == "Doctor":
@@ -406,16 +497,15 @@ def clear_logs(role):
     # Step 3: Clear in-memory logs
     prediction_log_doctor.clear() if role == "Doctor" else prediction_log_user.clear()
 
-    return gr.Textbox(value="Predictions: 0", interactive=False)
+    return gr.update(value="Predictions: 0", interactive=False)
 
 
 # Confirm before clearing logs
 def confirm_clear():
-    return gr.Textbox(
+    return gr.update(
         value="⚠️ Are you sure you want to clear the logs? Click again to confirm.",
         visible=True,
         interactive=False,
-        label=""
     )
 
 
@@ -423,27 +513,22 @@ def clear_confirmed(role):
     cleared = clear_logs(role)
     return (
         cleared,
-        gr.Textbox(value="✅ Logs cleared successfully!", visible=True),
+        gr.update(value="✅ Logs cleared successfully!", visible=True),
         gr.update(value=None, visible=False),  # csv_output
         gr.update(interactive=True)  # filename_input
     )
 
 
 def reset_confirm_box():
-    return gr.Textbox(value="", visible=False)
+    return gr.update(value="", visible=False)
 
 
 def disable_filename_input():
-    return gr.Textbox(interactive=False)
+    return gr.update(interactive=False)
 
 
 def show_loading_msg():
     return gr.update(value="⏳ Running inference...", visible=True)
-
-
-def blink_box_effect(path):
-    # return file component with blinking class
-    return gr.File(value=path, elem_classes=["download_box", "blink-csv"], visible=True, interactive=True)
 
 
 def update_role_state(r):
@@ -506,35 +591,37 @@ def reset_ui():
 
     return (
         # Inputs (text/image areas)
-        gr.update(value="", visible=is_text),    # emr_text
+        gr.update(value="", visible=is_text),                  # emr_text
         gr.update(value=None, visible=is_image),               # image
-        gr.update(visible=is_image),  # max_file_note
+        gr.update(visible=is_image),                           # max_file_note
 
         # Prediction/result area
-        gr.update(value="", visible=True),     # result_box
-        gr.update(value=None, visible=False),  # gradcam_img
-        gr.update(value=None, visible=False),  # token_attention
-        gr.update(value="", visible=False),    # top5_html
-        gr.update(value="", visible=False),    # confidence_label
-        gr.update(visible=False),              # insights_tab
-        gr.update(value={}, visible=True),     # class_probs_json
+        build_result_box("", "prediction-none"),               # result_box - Clears glow
+        gr.update(value=None, visible=False),                  # gradcam_img
+        gr.update(value=None, visible=False),                  # token_attention
+        gr.update(value="", visible=False),                    # top5_html
+        gr.update(value="", visible=False),                    # confidence_label
+        gr.update(visible=False),                              # insights_tab
+        gr.update(value={}, visible=True),                     # class_probs_json
+        gr.update(value="Predictions: 0", interactive=False),  # prediction_count_box
 
         # Role/mode controls + states
-        "User",                                # role_state
-        DEFAULT_MODE,                          # mode_state
-        "visual",                              # normalization_mode_state
-        gr.update(value="User"),               # role (radio)
-        gr.update(value=DEFAULT_MODE),         # mode (radio)
-        gr.update(value="visual"),             # normalize_mode (radio)
-        gr.update(visible=False),              # normalize_mode_column (hide in User)
-        gr.update(visible=False),              # use_rollout
-        False,                                 # rollout_state
+        "User",                                                # role_state
+        DEFAULT_MODE,                                          # mode_state
+        "visual",                                              # normalization_mode_state
+        gr.update(value="User"),                               # role (radio)
+        gr.update(value=DEFAULT_MODE),                         # mode (radio)
+        gr.update(value="visual"),                             # normalize_mode (radio)
+        gr.update(visible=False),                              # normalize_mode_column (hide in User)
+        gr.update(visible=False),                              # use_rollout
+        False,                                                 # rollout_state
 
         # Loading + inference state
-        gr.update(value="", visible=False),    # loading_msg
-        False,                                 # inference_done
-        gr.update(value="", visible=False),    # export_status_box
-        gr.update(value=None, visible=True)    # csv_output
+        gr.update(value="", visible=False),                    # loading_msg
+        False,                                                 # inference_done
+        gr.update(value="", visible=False),                    # export_status_box
+        gr.update(value=None, visible=False),                   # csv_output
+        gr.update(interactive=True, value="")                  # filename_input
     )
 
 
@@ -542,7 +629,7 @@ def build_ui():
     # Load CSS safely (don't crash if file is missing on remote)
     style_path = Path(__file__).resolve().parent / "style.css"
     custom_css = style_path.read_text(encoding="utf-8") if style_path.exists() else ""
-    print("Loaded CSS bytes:", len(custom_css))
+    log.debug("Loaded CSS bytes: %d", len(custom_css))
     with gr.Blocks(css=custom_css) as demo:
         # ----- Header -----
         gr.Markdown("## 🩺 Medi-LLM: Clinical Triage Assistant 🩻", elem_id="title")
@@ -565,7 +652,7 @@ def build_ui():
         role_state = gr.State(value="User")
         mode_state = gr.State(value=DEFAULT_MODE)
         rollout_state = gr.State(value=False)
-        normaliza_mode_state = gr.State(value="visual")
+        normalize_mode_state = gr.State(value="visual")
         inference_done = gr.State(value=False)
 
         # ----- Role and Mode selection -----
@@ -604,7 +691,7 @@ def build_ui():
 
         # ----- Outputs -----
         with gr.Column(elem_classes=["output-box"]):
-            result_box = gr.Textbox(label="🧪 Triage Prediction", interactive=False)
+            result_box = gr.Textbox(label="🧪 Triage Prediction", interactive=False, elem_id="result_box")
             confidence_label = gr.Label(label="📊 Confidence", visible=False)
             prediction_count_box = gr.Textbox(value="Predictions: 0", interactive=False, label="🧮 Count", elem_id="prediction_count_box")
             insights_tab = gr.Tabs(visible=False)
@@ -648,7 +735,7 @@ def build_ui():
             outputs=[loading_msg]
         ).then(
             fn=classify,
-            inputs=[role_state, mode_state, normaliza_mode_state, emr_text, image, rollout_state],
+            inputs=[role_state, mode_state, normalize_mode_state, emr_text, image, rollout_state],
             outputs=[
                 result_box,
                 gradcam_img,
@@ -684,7 +771,7 @@ def build_ui():
         normalize_mode.change(
             fn=lambda val: val,
             inputs=[normalize_mode],
-            outputs=[normaliza_mode_state],
+            outputs=[normalize_mode_state],
             queue=False,
         )
 
@@ -736,9 +823,8 @@ def build_ui():
                     label="CSV filename (optional)",
                     placeholder="e.g., triage_results.csv",
                     info="Set filename as needed or leave blank for auto-naming",
-                    elem_id="csv_filename"
+                    elem_id="csv_filename",
                 )
-
                 export_status_box = gr.Textbox(
                     value="",
                     visible=False,
@@ -761,20 +847,23 @@ def build_ui():
                 confirm_box = gr.Textbox(label="Status", interactive=False, visible=False, elem_id="confirm_box")
 
             with gr.Column(scale=3):
-                csv_output = gr.File(label="📂 Download Link", elem_id="download_box")
+                csv_output = gr.File(
+                    label="📂 Download Link",
+                    elem_id="download_box",
+                    elem_classes=["download_box"],
+                    visible=False,
+                    file_count="single",
+                    file_types=[".csv"],
+                    interactive=False,
+                )
 
         download_btn.click(
             fn=export_csv,
             inputs=[filename_input, role_state],
             outputs=[
                 csv_output,
-                csv_output,
                 export_status_box
             ]
-        ).then(
-            fn=blink_box_effect,
-            inputs=[csv_output],
-            outputs=[csv_output]
         ).then(
             fn=disable_filename_input,
             outputs=[filename_input]
@@ -783,7 +872,7 @@ def build_ui():
         clear_btn.click(
             fn=lambda: (
                 confirm_clear(),
-                gr.Button(visible=True),
+                gr.update(visible=True),
             ),
             outputs=[confirm_box, confirm_clear_btn]
         )
@@ -819,21 +908,26 @@ def build_ui():
                 confidence_label,       # 8
                 insights_tab,           # 9
                 class_probs_json,       # 10
-                role_state,             # 11
-                mode_state,             # 12
-                normaliza_mode_state,   # 13
-                role,                   # 14 (radio)
-                mode,                   # 15 (radio)
-                normalize_mode,         # 16 (radio)
-                normalize_mode_column,  # 17 (column visibility)
-                use_rollout,            # 18
-                rollout_state,          # 19
-                loading_msg,            # 20
-                inference_done,         # 21
-                export_status_box,      # 22
-                csv_output              # 23
+                prediction_count_box,   # 11
+                role_state,             # 12
+                mode_state,             # 13
+                normalize_mode_state,   # 14
+                role,                   # 15 (radio)
+                mode,                   # 16 (radio)
+                normalize_mode,         # 17 (radio)
+                normalize_mode_column,  # 18 (column visibility)
+                use_rollout,            # 19
+                rollout_state,          # 20
+                loading_msg,            # 21
+                inference_done,         # 22
+                export_status_box,      # 23
+                csv_output,             # 24
+                filename_input,         # 25
             ]
         )
+        # Run warm start when UI loads
+        demo.load(fn=warm_start, inputs=None, outputs=None)
+
     return demo
 
 

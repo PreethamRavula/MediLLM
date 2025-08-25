@@ -105,35 +105,34 @@ body {
 }
 
 /* === Highlight top-attention token with glow === */
-.token-attn-box .token[style*="rgba(247, 118, 142, 1)"] {
+.token-attn-box .token[style*="#f7768e"] {
+    /* keep the glow for hottest tokens */
     box-shadow: 0 0 10px 5px rgba(247, 118, 142, 0.85);
     border-radius: 6px;
     font-weight: 600;
+    color: #f7768e;
 }
 
 /* === Attention-based text color tinting for stronger contrast === */
-.token-attn-box .token[style*="rgba(255, 138, 101"],
-.token-attn-box .token[style*="rgba(255, 138, 101, 1)"] {
-    color: #ff8a65;
-}
-
-.token-attn-box .token[style*="rgba(251, 192, 45"],
-.token-attn-box .token[style*="rgba(251, 192, 45, 1)"] {
-    color: #fbc02d;
-}
-
-.token-attn-box .token[style*="rgba(128, 222, 234"],
-.token-attn-box .token[style*="rgba(128, 222, 234, 1)"] {
-    color: #80deea;
-}
-
-.token-attn-box .token[style*="rgba(122, 162, 247"],
-.token-attn-box .token[style*="rgba(122, 162, 247, 1)"] {
+/* Align with the color map chosen 
+   0.0 -> #7aa2f7, 0.25 -> #80deea, 0.5 -> #fbc02d, 0.75 -> #ff8a65, 1.0 -> #f7768e */
+.token-attn-box .token[style*="#7aa2f7"] {
     color: #7aa2f7;
 }
 
-.token-attn-box .token[style*="rgba(247, 118, 142"],
-.token-attn-box .token[style*="rgba(247, 118, 142, 1)"] {
+.token-attn-box .token[style*="#80deea"] {
+    color: #80deea;
+}
+
+.token-attn-box .token[style*="#fbc02d"] {
+    color: #fbc02d;
+}
+
+.token-attn-box .token[style*="#ff8a65"] {
+    color: #ff8a65;
+}
+
+.token-attn-box .token[style*="#f7768e"] {
     color: #f7768e;
 }
 
@@ -162,19 +161,29 @@ body {
 .top5-box h4 { letter-spacing: .2px; }
 
 /* === Triage Prediction Box Glow (based on class) === */
-.prediction-high {
+#result_box.prediction-high textarea,
+#result_box.prediction-high input {
     border: 2px solid #f7768e !important;
     box-shadow: 0 0 8px 3px #f7768e !important;
 }
 
-.prediction-medium {
+#result_box.prediction-medium textarea,
+#result_box.prediction-medium input {
     border: 2px solid #e0af68 !important;
     box-shadow: 0 0 8px 3px #e0af68 !important;
 }
 
-.prediction-low {
-    border: 2px solid #e0af68 !important;
-    box-shadow: 0 0 8px 3px #e0af68 !important;
+#result_box.prediction-low textarea,
+#result_box.prediction-low input {
+    border: 2px solid #9ece6a !important;
+    box-shadow: 0 0 8px 3px #9ece6a !important;
+}
+
+/* Neutral state that cancels any previous glow */
+#result_box.prediction-none textarea,
+#result_box.prediction-none input {
+  box-shadow: none !important;
+  border: 1px solid #3b4261 !important; /* or whatever your base border is */
 }
 
 /* === Basic Radio Button Styling (Role + Mode) === */
@@ -315,16 +324,18 @@ body {
 }
 
 /* === Blinking effect for CSV download box === */
-@keyframes blink-box {
-    0% { box-shadow: 0 0 6px 2px #7aa2f7; }
-    50% { box-shadow: 0 0 12px 4px #7aa2f7; }
-    100% { box-shadow: 0 0 6px 2px #7aa2f7; }
+#download_box.download_box { /* or just #download_box */
+    transition: box-shadow .25s ease;
 }
 
-.blink-csv {
-    animation: blink-box 1.5s ease-in-out 3;
-    border-radius: 8px;
-    border: 1px solid #7aa2f7 !important;
+/* temporary blink */
+#download_box.blink-csv {
+    animation: csv-blink 2s ease-in-out 3;
+}
+
+@keyframes csv-blink {
+    0% { box-shadow: 0 0 0 0 rgba(122,162,247,.8); }
+    100% { box-shadow: 0 0 0 18px rgba(122,162,247,0); }
 }
 
 /* === Prediction Count Box === */
