@@ -1,3 +1,7 @@
+# --- Git metadata ---
+.git
+.gitignore
+
 # --- Python ---
 __pycache__/
 *.py[cod]
@@ -13,6 +17,7 @@ __pycache__/
 data/
 results/
 logs/
+exports/
 hf-cache/
 checkpoints/
 *.log
@@ -31,14 +36,8 @@ wandb_logs/
 
 # Predictions / exports
 predictions_*.csv
-
-# Local run outputs
 app/demo/uploads/
 app/demo/exports/
-
-# Docker volume outputs
-uploads/
-exports/
 
 # OS junk
 .DS_Store
@@ -51,3 +50,8 @@ exports/
 !sample_data/**
 !tests/**
 !config/config.yaml.example
+
+# --- Docker-specific ---
+Dockerfile
+docker-compose.yml
+.dockerignore

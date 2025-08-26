@@ -6,18 +6,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git ffmpeg libsm6 libxext6 libgl1 curl \
  && rm -rf /var/lib/apt/lists/*
 
-# 3) Set working dir inside the container
+# 3) Faster, cleaner Python logs + consistent HF cache location
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    HF_HOME=/root/.cache/huggingface \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# 4) Working directory
 WORKDIR /app
 
-# 4) Install Python deps using the cached layer trick
+# 5) Install Python deps first (better build caching)
 COPY requirements.txt .
-ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# 5) Copy your soucre code (done after deps so earlier layers cache)
+# 6) Copy your soucre code (done after deps so earlier layers cache)
 COPY . .
 
-# 6) Env for Gradio + Matplotlib
+# 7) Env for Gradio + Matplotlib
 ENV GRADIO_SERVER_NAME=0.0.0.0 \
     GRADIO_SERVER_PORT=7860 \
     MPLCONFIGDIR=/tmp/mpl

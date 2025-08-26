@@ -16,13 +16,15 @@ services:
     volumes:
       # Persist CSV/exports to your host (appears in ./exports)
       - ./exports:/data/app/demo/exports
+      # Persist uploads to your host (appears in ./uploads)
+      - ./uploads:/data/app/demo/uploads
       # Cache models between runs for speed
       - ./hf-cache:/root/.cache/huggingface
+      # Live-mount code
+      - .:/app
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:${PORT:-7860}"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:${PORT:-7860}', timeout=2)"]
       interval: 10s
       timeout: 3s
       retries: 5
-    # Dev convenience: uncomment to use your live code without rebuilds
-    # volumes:
-    #   - .:/app
+
