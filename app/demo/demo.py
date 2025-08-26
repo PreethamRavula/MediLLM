@@ -602,7 +602,7 @@ def reset_ui():
         gr.update(value="", visible=False),                    # top5_html
         gr.update(value="", visible=False),                    # confidence_label
         gr.update(visible=False),                              # insights_tab
-        gr.update(value={}, visible=False),                     # class_probs_json
+        gr.update(value={}, visible=True),                     # class_probs_json
         gr.update(value="Predictions: 0", interactive=False),  # prediction_count_box
 
         # Role/mode controls + states
