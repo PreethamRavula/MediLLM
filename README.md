@@ -10,13 +10,49 @@ pinned: true
 ---
 
 
-## 🏥 MediLLM: AI-Powered Clinical Triage Assistant
+# 🩺 MediLLM: Multimodal Clinical Triage Assistant
 
-🚀 A multimodal LLM-based system that predicts clinical triage levels from EMRs and chest X-rays.
+<p align="center">
+  <!-- Core tech -->
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10-3776AB?logo=python&logoColor=white" alt="Python 3.10"></a>
+  <a href="https://pytorch.org/"><img src="https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white" alt="PyTorch"></a>
+  <a href="https://huggingface.co/docs/transformers"><img src="https://img.shields.io/badge/Transformers-%F0%9F%A4%97-ffd21e?labelColor=302D41" alt="HF Transformers"></a>
+  <a href="https://gradio.app/"><img src="https://img.shields.io/badge/Gradio-UI-00A67E?logo=gradio&logoColor=white" alt="Gradio"></a>
 
-## 📊 Demo
+  <!-- Ops & CI -->
+  <a href="https://www.docker.com/"><img src="https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white" alt="Docker"></a>
+  <a href="https://github.com/PreethamRavula/MediLLM/actions"><img src="https://img.shields.io/github/actions/workflow/status/PreethamRavula/MediLLM/ci.yml?label=CI&logo=github" alt="CI Status"></a>
 
-## 🔧 Features
+    <!-- Docker image info -->
+  <a href="https://github.com/PreethamRavula/MediLLM/pkgs/container/medi-llm">
+    <img src="https://img.shields.io/github/v/release/PreethamRavula/MediLLM?label=release&logo=github">
+  </a>
+  <a href="https://github.com/PreethamRavula/MediLLM/pkgs/container/medi-llm">
+    <img src="https://img.shields.io/docker/image-size/ravula22/medi-llm/latest?label=image%20size&logo=docker">
+  </a>
+
+  <!-- Platforms -->
+  <a href="<https://huggingface.co/spaces/Preetham22/medi-llm>"><img src="https://img.shields.io/badge/Hugging%20Face-Spaces-f2b01e?logo=huggingface&logoColor=white" alt="HF Spaces"></a>
+  <a href="<https://wandb.ai/preethamravula-n-a/MediLLM_Final_v2?nw=nwuserpreethamravula>"><img src="https://img.shields.io/badge/W%26B-dashboard-FFBE00?logo=weightsandbiases&logoColor=white" alt="W&B Dashboard"></a>
+
+
+  <!-- Code quality / license -->
+  <a href="https://github.com/psf/black"><img src="https://img.shields.io/badge/code%20style-black-000000?logo=python&logoColor=white" alt="Black"></a>
+  <a href="https://choosealicense.com/licenses/mit/"><img src="https://img.shields.io/badge/License-MIT-2DCE89" alt="License: MIT"></a>
+</p>
+
+> A multimodal AI system for clinical triage that fuses **Electronic Medical Records (EMR text)** with **Chest X-ray images** to predict triage level (**High / Medium / Low**).
+> Includes advanced interpretability (Grad-CAM, token attention, attention rollout), automated training pipelines, CI/CD, and deployment via **Docker** & **Hugging Face Spaces**.
+
+---
+
+## 🚀 Demo
+
+👉 [**Try it on Hugging Face Spaces**](https://huggingface.co/spaces/Preetham22/medi-llm)
+
+---
+
+## ✨ Features
 
 - LLM + Vision Fusion
 - Few-shot Prompt Tuning

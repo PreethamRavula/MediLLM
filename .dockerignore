@@ -1,57 +1,67 @@
-# --- Git metadata ---
+# --- VCS ---
 .git
+.git/*
 .gitignore
+.gitattributes
 
-# --- Python ---
+# --- Python bytecode & caches ---
 __pycache__/
 *.py[cod]
 *.pyo
 *.so
 *.dylib
-.venv/
-.env
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .coverage
-.ipynb_checkpoints/
+.coverage.*
+htmlcov/
 
-# --- Data & Artifacts ---
-data/
-results/
-logs/
-exports/
-hf-cache/
-checkpoints/
+# --- Virtual envs & local config ---
+.venv/
+venv/
+.env
+.env.*
 *.log
 *.tmp
 *.db
 
-# Models / weights
+# --- OS/editor junk ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# --- Large data / artifacts (exclude everywhere, any depth) ---
+**/data/
+**/results/
+**/logs/
+**/exports/
+**/hf-cache/
+**/checkpoints/
+**/wandb/
+**/wandb_logs/
+**/app/demo/uploads/
+**/app/demo/exports/
+
+# --- Model weights & archives ---
 *.pt
 *.pth
 *.ckpt
 *.safetensors
+*.npz
+*.npy
+*.zip
+*.tar
+*.tar.gz
 
-# W&B & experiment outputs
-wandb/
-wandb_logs/
+# --- Build outputs ---
+build/
+dist/
+.eggs/
+*.egg-info/
 
-# Predictions / exports
-predictions_*.csv
-app/demo/uploads/
-app/demo/exports/
-
-# OS junk
-.DS_Store
-
-# --- Exceptions (allow small fixtures/samples) ---
-!data/dummy_images/
-!data/dummy_images/COVID/*.png
-!data/dummy_images/NORMAL/*.png
-!data/dummy_images/VIRAL PNEUMONIA/*.png
-!sample_data/**
-!tests/**
-!config/config.yaml.example
-
-# --- Docker-specific ---
-Dockerfile
-docker-compose.yml
-.dockerignore
+# --- Not needed in the runtime image (optional) ---
+tests/
+notebooks/
+docs/
