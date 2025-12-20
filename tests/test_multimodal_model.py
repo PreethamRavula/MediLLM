@@ -44,8 +44,11 @@ def test_text_only(mock_create_model, mock_auto_model, dummy_inputs):
         attention_mask=dummy_inputs["attention_mask"]
     )
 
-    assert outputs.shape == (BATCH_SIZE, 3)
-    probs = torch.softmax(outputs, dim=1)
+    assert isinstance(outputs, dict), "Model should return a dict"
+    assert "logits" in outputs, "Output dict should contain 'logits'"
+    logits = outputs["logits"]
+    assert logits.shape == (BATCH_SIZE, 3)
+    probs = torch.softmax(logits, dim=1)
     assert torch.allclose(probs.sum(dim=1), torch.ones(BATCH_SIZE), atol=1e-5)
 
 
@@ -62,8 +65,11 @@ def test_image_only(mock_create_model, mock_auto_model, dummy_inputs):
     model.eval()
     outputs = model(image=dummy_inputs["image"])
 
-    assert outputs.shape == (BATCH_SIZE, 3)
-    probs = torch.softmax(outputs, dim=1)
+    assert isinstance(outputs, dict), "Model should return a dict"
+    assert "logits" in outputs, "Output dict should contain 'logits'"
+    logits = outputs["logits"]
+    assert logits.shape == (BATCH_SIZE, 3)
+    probs = torch.softmax(logits, dim=1)
     assert torch.allclose(probs.sum(dim=1), torch.ones(BATCH_SIZE), atol=1e-5)
 
 
@@ -92,6 +98,9 @@ def test_multimodal(mock_create_model, mock_auto_model, dummy_inputs):
         image=dummy_inputs["image"],
     )
 
-    assert outputs.shape == (BATCH_SIZE, 3)
-    probs = torch.softmax(outputs, dim=1)
+    assert isinstance(outputs, dict), "Model should return a dict"
+    assert "logits" in outputs, "Output dict should contain 'logits'"
+    logits = outputs["logits"]
+    assert logits.shape == (BATCH_SIZE, 3)
+    probs = torch.softmax(logits, dim=1)
     assert torch.allclose(probs.sum(dim=1), torch.ones(BATCH_SIZE), atol=1e-5)

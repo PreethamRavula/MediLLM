@@ -25,6 +25,9 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov flake8 black isort
 
+      - name: 🖼️ Generate dummy test images
+        run: python scripts/generate_dummy_images.py
+
       - name: ✅ Lint code with flake8
         run: flake8
 
