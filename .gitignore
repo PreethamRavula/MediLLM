@@ -44,10 +44,6 @@ exports/
 .DS_Store
 
 # --- Exceptions (allow small fixtures/samples) ---
-!data/dummy_images/
-!data/dummy_images/COVID/*.png
-!data/dummy_images/NORMAL/*.png
-!data/dummy_images/VIRAL PNEUMONIA/*.png
 !sample_data/**
 !tests/**
 !config/config.yaml.example
